@@ -1,21 +1,26 @@
 #include "main.h"
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(command,
-		FLATTEN_STRING(cmd);
+		AGGREGATE_FLATTEN_STRING(cmd);
 	)
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(dep,
-		FLATTEN_STRING(fno);
-		FLATTEN_TYPE_ARRAY(int,arr,5);
+		AGGREGATE_FLATTEN_STRING(fno);
+		AGGREGATE_FLATTEN_TYPE_ARRAY_SIZE(int,arr,5);
 	)
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(file,
-		FLATTEN_STRING(name);
-		FLATTEN_STRING(value);
-		FLATTEN_STRUCT(command,c);
-		FLATTEN_STRUCT(file,next);
-    	FLATTEN_STRUCT(file,prev);
-    	FLATTEN_STRUCT(dep,d);
+		AGGREGATE_FLATTEN_STRING(name);
+		AGGREGATE_FLATTEN_STRING(value);
+		AGGREGATE_FLATTEN_STRUCT(command,c);
+		AGGREGATE_FLATTEN_STRUCT(file,next);
+    	AGGREGATE_FLATTEN_STRUCT(file,prev);
+    	AGGREGATE_FLATTEN_STRUCT(dep,d);
+    	AGGREGATE_FLATTEN_STRUCT(filearr,farr);
+	)
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(filearr,
+		AGGREGATE_FLATTEN_STRUCT_ARRAY_SIZE(file,files,8);
 	)
 
 struct rb_root imap_root = RB_ROOT;
@@ -46,6 +51,23 @@ char* st[] = {
 
 int main(void) {
 
+//#define FLATTEN_ARRAY_TEST
+#ifdef FLATTEN_ARRAY_TEST
+	char s[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#$*@0123456789";
+	int ia[10] = {0,1,2,3,4,5,6,7,8,9};
+	FLATTEN_TYPE_ARRAY(char,s+10,5);	// KLMNO
+	FLATTEN_TYPE_ARRAY(char,s+20,3);	// UVW
+	FLATTEN_TYPE_ARRAY(char,s+30,6);	// 012345
+	FLATTEN_STRING(s); // full string
+	FLATTEN_TYPE_ARRAY(int,ia,10);	// 0..9
+	binary_stream_print();
+    interval_tree_print(&imap_root);
+    binary_stream_destroy();
+    interval_tree_destroy(&imap_root);
+	return 0;
+#endif
+
+//#define NODE_TEST
 #ifdef NODE_TEST
 	struct interval_tree_node* n1 = calloc(1,sizeof(struct interval_tree_node));
 	n1->start=30;
@@ -81,6 +103,7 @@ int main(void) {
 #endif
 
 	struct file f[8] = {};
+	struct filearr farr = {f};
     struct command c[8] = {
     	{"command0",st+20-0,0},
     	{"command1",st+20-1,1},
@@ -120,11 +143,10 @@ int main(void) {
     STRUCT_FILE_INIT(6); f[6].next=&f[7]; f[6].prev=0; f[6].d = &d6;
     STRUCT_FILE_INIT(7); f[7].next=&f[5]; f[7].prev=0; f[7].d = 0;
     f[0].name = &f[1].name[2];
+    f[0].farr = &farr;
 
-    int i;
-    for (i=0; i<8; ++i) {
-    	flatten_struct_file(&f[i]);
-    }
+    FLATTEN_STRUCT(file,&f[0]);
+    FLATTEN_STRUCT_ARRAY_SIZE(file,&farr.files[0],8);
 
     binary_stream_print();
     interval_tree_print(&imap_root);

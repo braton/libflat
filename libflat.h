@@ -55,6 +55,11 @@ static inline struct flatten_pointer* make_flatten_pointer(struct interval_tree_
 	return v;
 }
 
+struct address_node {
+	struct rb_node rb;
+	unsigned long address;
+};
+
 typedef size_t (*calc_fun_char)(const char*);
 
 static inline size_t strmemlen(const char* s) {
@@ -73,21 +78,53 @@ static inline size_t strmemlen(const char* s) {
 	    }	\
 	} while(0)
 
-#define FLATTEN_STRUCT(T,f)	do {	\
+#define AGGREGATE_FLATTEN_STRUCT(T,f)	do {	\
     	if ((_ptr)->f) {	\
 		    (_ptr)->f = (void*)flatten_struct_##T((_ptr)->f);	\
 		    APPEND_FIELD_OFFSET(f);	\
 		}	\
 	} while(0)
 
-#define FLATTEN_STRING(f)   do {  \
+#define FLATTEN_STRUCT(T,p)	(p)?((void*)flatten_struct_##T((p))):(0)
+
+#define AGGREGATE_FLATTEN_STRUCT_ARRAY_SIZE(T,f,n)	do {	\
+    	if ((_ptr)->f) {	\
+    		int _i;	\
+    		void* _fp_first=0;	\
+    		for (_i=0; _i<(n); ++_i) {	\
+    			void* _fp = (void*)flatten_struct_##T((_ptr)->f+_i);	\
+    			if (!_fp_first) _fp_first=_fp;	\
+    		}	\
+		    (_ptr)->f = _fp_first;	\
+		    APPEND_FIELD_OFFSET(f);	\
+		}	\
+	} while(0)
+
+#define INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY_SIZE(FLTYPE)	\
+static inline struct flatten_pointer* flatten_struct_##FLTYPE##_array_size(struct FLTYPE* _p, int n) {	\
+	int _i;	\
+	void* _fp_first=0;	\
+	for (_i=0; _i<n; ++_i) {	\
+		void* _fp = (void*)flatten_struct_##FLTYPE(_p+_i);	\
+		if (!_fp_first) _fp_first=_fp;	\
+	}	\
+    return _fp_first;	\
+}
+
+#define FLATTEN_STRUCT_ARRAY_SIZE(T,p,n)	(p)?((void*)flatten_struct_##T##_array_size((p),(n))):(0)
+
+#define FLATTEN_STRING(p)	(p)?((void*)flatten_plain_char_calc((p),strmemlen)):(0)
+
+#define AGGREGATE_FLATTEN_STRING(f)   do {  \
         if ((_ptr)->f) {   \
             (_ptr)->f = (void*)flatten_plain_char_calc((_ptr)->f,strmemlen); \
             APPEND_FIELD_OFFSET(f);	\
         }   \
     } while(0)
 
-#define FLATTEN_TYPE_ARRAY(T,f,n)   do {  \
+#define FLATTEN_TYPE_ARRAY_SIZE(T,p,n)	(p)?((void*)flatten_plain_##T##_size((p),(n)*sizeof(T))):(0)
+
+#define AGGREGATE_FLATTEN_TYPE_ARRAY_SIZE(T,f,n)   do {  \
         if ((_ptr)->f) {   \
             (_ptr)->f = (void*)flatten_plain_##T##_size((_ptr)->f,(n)*sizeof(T)); \
             APPEND_FIELD_OFFSET(f);	\

@@ -20,6 +20,8 @@ struct dep {
 
 FUNCTION_DECLARE_FLATTEN_STRUCT(dep);
 
+struct filearr;
+
 struct file {
     char* name;
     char* value;
@@ -29,8 +31,16 @@ struct file {
     struct file* next;
     struct file* prev;
     struct dep* d;
+    struct filearr* farr;
 };
 
 FUNCTION_DECLARE_FLATTEN_STRUCT(file);
+
+struct filearr {
+	struct file* files;
+};
+
+INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY_SIZE(file);
+FUNCTION_DECLARE_FLATTEN_STRUCT(filearr);
 
 #endif

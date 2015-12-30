@@ -97,16 +97,19 @@ void binary_stream_destroy() {
 void binary_stream_print() {
 
 	struct blstream* cp = bhead;
+	size_t total_size = 0;
     while(cp) {
     	struct blstream* p = cp;
     	size_t i;
     	cp = cp->next;
     	printf("{%lu}[ ",p->size);
+    	total_size+=p->size;
     	for (i=0; i<p->size; ++i) {
     		printf("%02x ",((unsigned char*)(p->data))[i]);
     	}
     	printf("]\n");
     }
+    printf("@ Total size: %lu\n",total_size);
 }
 
 struct field_offset* create_field_offset_element(unsigned long offset) {
@@ -136,12 +139,15 @@ void field_offset_print(struct field_offset* head) {
 
 void interval_tree_print(struct rb_root *root) {
 	struct rb_node * p = rb_first(root);
+	size_t total_size=0;
 	while(p) {
 		struct interval_tree_node* node = (struct interval_tree_node*)p;
 		printf("[%016lx:%016lx]{%016lx}",node->start,node->last,(unsigned long)node->storage);
 		field_offset_print(node->poffs_head);
+		total_size+=node->last-node->start+1;
 		p = rb_next(p);	
 	};
+	printf("@ Total size: %lu\n",total_size);
 }
 
 void interval_tree_destroy(struct rb_root *root) {
@@ -171,6 +177,26 @@ void interval_tree_destroy(struct rb_root *root) {
     	free(p);
     }
 }
+
+struct mytype *rb_search(struct rb_root *root, )
+  {
+  	struct rb_node *node = root->rb_node;
+
+  	while (node) {
+  		struct mytype *data = container_of(node, struct mytype, node);
+		int result;
+
+		result = strcmp(string, data->keystring);
+
+		if (result < 0)
+  			node = node->rb_left;
+		else if (result > 0)
+  			node = node->rb_right;
+		else
+  			return data;
+	}
+	return NULL;
+  }
 
 FUNCTION_DEFINE_FLATTEN_PLAIN_TYPE(char);
 FUNCTION_DEFINE_FLATTEN_PLAIN_TYPE(int);
