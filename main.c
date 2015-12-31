@@ -55,11 +55,11 @@ int main(void) {
 #ifdef FLATTEN_ARRAY_TEST
 	char s[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#$*@0123456789";
 	int ia[10] = {0,1,2,3,4,5,6,7,8,9};
-	FLATTEN_TYPE_ARRAY(char,s+10,5);	// KLMNO
-	FLATTEN_TYPE_ARRAY(char,s+20,3);	// UVW
-	FLATTEN_TYPE_ARRAY(char,s+30,6);	// 012345
+	FLATTEN_TYPE_ARRAY_SIZE(char,s+10,5);	// KLMNO
+	FLATTEN_TYPE_ARRAY_SIZE(char,s+20,3);	// UVW
+	FLATTEN_TYPE_ARRAY_SIZE(char,s+30,6);	// 012345
 	FLATTEN_STRING(s); // full string
-	FLATTEN_TYPE_ARRAY(int,ia,10);	// 0..9
+	FLATTEN_TYPE_ARRAY_SIZE(int,ia,10);	// 0..9
 	binary_stream_print();
     interval_tree_print(&imap_root);
     binary_stream_destroy();

@@ -33,14 +33,20 @@ struct blstream* binary_stream_insert_back(const void* data, size_t size, struct
 void binary_stream_destroy();
 void binary_stream_print();
 
-struct field_offset {
-	struct field_offset* next;
+struct fixup_node {
+	struct fixup_node* next;
+	/* Storage area and offset where the original address to be fixed is stored */
+	struct interval_tree_node* node;
 	unsigned long offset;
+	/* Storage area and offset there the original address points to */
+	struct flatten_pointer* ptr;
 };
 
-struct field_offset* create_field_offset_element(unsigned long offset);
-void field_offset_destroy(struct field_offset* head);
-void field_offset_print(struct field_offset* head);
+extern struct fixup_node *fhead,*ftail;
+struct fixup_node* create_fixup_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr);
+void fixup_list_append(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr);
+void fixup_list_destroy();
+void fixup_list_print();
 
 struct flatten_pointer {
 	struct interval_tree_node* node;
@@ -55,48 +61,17 @@ static inline struct flatten_pointer* make_flatten_pointer(struct interval_tree_
 	return v;
 }
 
-struct address_node {
-	struct rb_node rb;
-	unsigned long address;
-};
-
 typedef size_t (*calc_fun_char)(const char*);
 
 static inline size_t strmemlen(const char* s) {
 	return strlen(s)+1;
 }
 
-#define APPEND_FIELD_OFFSET(f) do {	\
-		struct field_offset* _v = create_field_offset_element(offsetof(_container_type,f));	\
-		if (!node->poffs_head) {	\
-	        node->poffs_head = _v;	\
-	        node->poffs = _v;	\
-	    }	\
-	    else {	\
-	        node->poffs->next = _v;	\
-	        node->poffs = node->poffs->next;	\
-	    }	\
-	} while(0)
+#define FLATTEN_STRUCT(T,p)	(p)?((void*)flatten_struct_##T((p))):(0)
 
 #define AGGREGATE_FLATTEN_STRUCT(T,f)	do {	\
     	if ((_ptr)->f) {	\
-		    (_ptr)->f = (void*)flatten_struct_##T((_ptr)->f);	\
-		    APPEND_FIELD_OFFSET(f);	\
-		}	\
-	} while(0)
-
-#define FLATTEN_STRUCT(T,p)	(p)?((void*)flatten_struct_##T((p))):(0)
-
-#define AGGREGATE_FLATTEN_STRUCT_ARRAY_SIZE(T,f,n)	do {	\
-    	if ((_ptr)->f) {	\
-    		int _i;	\
-    		void* _fp_first=0;	\
-    		for (_i=0; _i<(n); ++_i) {	\
-    			void* _fp = (void*)flatten_struct_##T((_ptr)->f+_i);	\
-    			if (!_fp_first) _fp_first=_fp;	\
-    		}	\
-		    (_ptr)->f = _fp_first;	\
-		    APPEND_FIELD_OFFSET(f);	\
+    		fixup_list_append(node,offsetof(_container_type,f),flatten_struct_##T((_ptr)->f));	\
 		}	\
 	} while(0)
 
@@ -113,12 +88,23 @@ static inline struct flatten_pointer* flatten_struct_##FLTYPE##_array_size(struc
 
 #define FLATTEN_STRUCT_ARRAY_SIZE(T,p,n)	(p)?((void*)flatten_struct_##T##_array_size((p),(n))):(0)
 
+#define AGGREGATE_FLATTEN_STRUCT_ARRAY_SIZE(T,f,n)	do {	\
+    	if ((_ptr)->f) {	\
+    		int _i;	\
+    		void* _fp_first=0;	\
+    		for (_i=0; _i<(n); ++_i) {	\
+    			void* _fp = (void*)flatten_struct_##T((_ptr)->f+_i);	\
+    			if (!_fp_first) _fp_first=_fp;	\
+    		}	\
+		    fixup_list_append(node,offsetof(_container_type,f),_fp_first);	\
+		}	\
+	} while(0)
+
 #define FLATTEN_STRING(p)	(p)?((void*)flatten_plain_char_calc((p),strmemlen)):(0)
 
 #define AGGREGATE_FLATTEN_STRING(f)   do {  \
         if ((_ptr)->f) {   \
-            (_ptr)->f = (void*)flatten_plain_char_calc((_ptr)->f,strmemlen); \
-            APPEND_FIELD_OFFSET(f);	\
+        	fixup_list_append(node,offsetof(_container_type,f),flatten_plain_char_calc((_ptr)->f,strmemlen));	\
         }   \
     } while(0)
 
@@ -126,8 +112,7 @@ static inline struct flatten_pointer* flatten_struct_##FLTYPE##_array_size(struc
 
 #define AGGREGATE_FLATTEN_TYPE_ARRAY_SIZE(T,f,n)   do {  \
         if ((_ptr)->f) {   \
-            (_ptr)->f = (void*)flatten_plain_##T##_size((_ptr)->f,(n)*sizeof(T)); \
-            APPEND_FIELD_OFFSET(f);	\
+            fixup_list_append(node,offsetof(_container_type,f),flatten_plain_##T##_size((_ptr)->f,(n)*sizeof(T)));	\
         }   \
     } while(0)
 

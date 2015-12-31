@@ -9,8 +9,6 @@ struct interval_tree_node {
 	unsigned long last;	/* Last location _in_ interval */
 	unsigned long __subtree_last;
 	struct blstream* storage;
-	struct field_offset* poffs_head;
-	struct field_offset* poffs;
 };
 
 extern void

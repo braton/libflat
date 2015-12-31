@@ -112,27 +112,46 @@ void binary_stream_print() {
     printf("@ Total size: %lu\n",total_size);
 }
 
-struct field_offset* create_field_offset_element(unsigned long offset) {
-	struct field_offset* n = calloc(1,sizeof(struct field_offset));
+struct fixup_node *fhead,*ftail;
+
+struct fixup_node* create_fixup_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
+	struct fixup_node* n = calloc(1,sizeof(struct fixup_node));
 	assert(n!=0);
+	n->node = node;
 	n->offset = offset;
+	n->ptr = ptr;
 	return n;
 }
 
-void field_offset_destroy(struct field_offset* head) {
-	while(head) {
-    	struct field_offset* p = head;
-    	head = head->next;
+void fixup_list_append(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
+	
+	struct fixup_node* nn = create_fixup_node_element(node, offset, ptr);
+
+	if (!fhead) {
+        fhead = nn;
+        ftail = nn;
+    }
+    else {
+        ftail->next = nn;
+        ftail = ftail->next;
+    }
+}
+
+void fixup_list_destroy() {
+	while(fhead) {
+    	struct fixup_node* p = fhead;
+    	fhead = fhead->next;
+    	free(p->ptr);
     	free(p);
     }
 }
 
-void field_offset_print(struct field_offset* head) {
+void fixup_list_print() {
 	printf("[ ");
-	while(head) {
-    	struct field_offset* p = head;
-    	head = head->next;
-    	printf("%lu ",p->offset);
+	while(fhead) {
+    	struct fixup_node* p = fhead;
+    	fhead = fhead->next;
+    	printf("(%016lx:%lu)->(%016lx:%lu) ",(unsigned long)p->node,p->offset,(unsigned long)p->ptr->node,p->ptr->offset);
     }
     printf("]\n");
 }
@@ -142,8 +161,7 @@ void interval_tree_print(struct rb_root *root) {
 	size_t total_size=0;
 	while(p) {
 		struct interval_tree_node* node = (struct interval_tree_node*)p;
-		printf("[%016lx:%016lx]{%016lx}",node->start,node->last,(unsigned long)node->storage);
-		field_offset_print(node->poffs_head);
+		printf("[%016lx:%016lx]{%016lx}\n",node->start,node->last,(unsigned long)node->storage);
 		total_size+=node->last-node->start+1;
 		p = rb_next(p);	
 	};
@@ -172,31 +190,10 @@ void interval_tree_destroy(struct rb_root *root) {
 	while(h) {
     	struct interval_nodelist* p = h;
     	h = h->next;
-    	field_offset_destroy(p->node->poffs_head);
     	free(p->node);
     	free(p);
     }
 }
-
-struct mytype *rb_search(struct rb_root *root, )
-  {
-  	struct rb_node *node = root->rb_node;
-
-  	while (node) {
-  		struct mytype *data = container_of(node, struct mytype, node);
-		int result;
-
-		result = strcmp(string, data->keystring);
-
-		if (result < 0)
-  			node = node->rb_left;
-		else if (result > 0)
-  			node = node->rb_right;
-		else
-  			return data;
-	}
-	return NULL;
-  }
 
 FUNCTION_DEFINE_FLATTEN_PLAIN_TYPE(char);
 FUNCTION_DEFINE_FLATTEN_PLAIN_TYPE(int);
