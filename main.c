@@ -1,17 +1,47 @@
 #include "main.h"
+#include <math.h>
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(command,
 		AGGREGATE_FLATTEN_STRING(cmd);
+		AGGREGATE_FLATTEN_TYPE_ARRAY(char*,values,ATTR(size));
+		FOREACH_POINTER(const void*,p,ATTR(values),ATTR(size),
+				FLATTEN_STRING(p);
+			);
+		
+		AGGREGATE_FLATTEN_TYPE(float***,deep_fp_value);
+		FOR_POINTER(float***,p,ATTR(deep_fp_value),
+			FLATTEN_TYPE(float**,p);
+			FOR_POINTER(float**,q,p,
+				FLATTEN_TYPE(float*,q);
+				FOR_POINTER(float*,r,q,
+					FLATTEN_TYPE(float,r);
+				);
+			);
+		);
+
 	)
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(dep,
+		AGGREGATE_FLATTEN_TYPE_ARRAY(struct file*,f,3);
+		FOREACH_POINTER(const struct file*,p,ATTR(f),3,
+				FLATTEN_STRUCT(file,p);
+			);
 		AGGREGATE_FLATTEN_STRING(fno);
-		AGGREGATE_FLATTEN_TYPE_ARRAY_SIZE(int,arr,5);
+		AGGREGATE_FLATTEN_TYPE_ARRAY(int,arr,5);
+		int index=0;
+		FOREACH_POINTER(int*,p,ATTR(pi),4,
+				FLATTEN_TYPE_ARRAY(int,p,ATTR(pi_size)[index]);
+				index++;
+			);
 	)
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(file,
 		AGGREGATE_FLATTEN_STRING(name);
 		AGGREGATE_FLATTEN_STRING(value);
+		AGGREGATE_FLATTEN_TYPE_ARRAY(char*,stp,ptrarrmemlen((const void * const*)ATTR(stp)));
+		FOREACH_POINTER(const char*,p,ATTR(stp),ptrarrmemlen((const void * const*)ATTR(stp)),
+				FLATTEN_STRING(p);
+			);
 		AGGREGATE_FLATTEN_STRUCT(command,c);
 		AGGREGATE_FLATTEN_STRUCT(file,next);
     	AGGREGATE_FLATTEN_STRUCT(file,prev);
@@ -20,7 +50,7 @@ FUNCTION_DEFINE_FLATTEN_STRUCT(file,
 	)
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(filearr,
-		AGGREGATE_FLATTEN_STRUCT_ARRAY_SIZE(file,files,8);
+		AGGREGATE_FLATTEN_STRUCT_ARRAY(file,files,8);
 	)
 
 struct rb_root imap_root = RB_ROOT;
@@ -55,11 +85,11 @@ int main(void) {
 #ifdef FLATTEN_ARRAY_TEST
 	char s[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#$*@0123456789";
 	int ia[10] = {0,1,2,3,4,5,6,7,8,9};
-	FLATTEN_TYPE_ARRAY_SIZE(char,s+10,5);	// KLMNO
-	FLATTEN_TYPE_ARRAY_SIZE(char,s+20,3);	// UVW
-	FLATTEN_TYPE_ARRAY_SIZE(char,s+30,6);	// 012345
+	FLATTEN_TYPE_ARRAY(char,s+10,5);	// KLMNO
+	FLATTEN_TYPE_ARRAY(char,s+20,3);	// UVW
+	FLATTEN_TYPE_ARRAY(char,s+30,6);	// 012345
 	FLATTEN_STRING(s); // full string
-	FLATTEN_TYPE_ARRAY_SIZE(int,ia,10);	// 0..9
+	FLATTEN_TYPE_ARRAY(int,ia,10);	// 0..9
 	binary_stream_print();
     interval_tree_print(&imap_root);
     binary_stream_destroy();
@@ -102,28 +132,39 @@ int main(void) {
 	return 0;
 #endif
 
+	float fp_value = M_PI;
+    float* pfp = &fp_value;
+    float** ppfp = &pfp;
+    float*** pppfp = &ppfp;
+    float**** ppppfp = &pppfp;
+
 	struct file f[8] = {};
 	struct filearr farr = {f};
     struct command c[8] = {
-    	{"command0",st+20-0,0},
-    	{"command1",st+20-1,1},
-    	{"command2",st+20-2,2},
-    	{"command3",st+20-3,3},
-    	{"command4",st+20-4,4},
-    	{"command5",st+20-5,5},
-    	{"command6",st+20-6,6},
-    	{"command7",st+20-7,7}
+    	{"command0",st+20-0,1,ppppfp},
+    	{"command1",st+20-1,2,ppppfp},
+    	{"command2",st+20-2,3,ppppfp},
+    	{"command3",st+20-3,4,ppppfp},
+    	{"command4",st+20-4,5},
+    	{"command5",st+20-5,6},
+    	{"command6",st+20-6,7},
+    	{"command7",st+20-7,8}
     };
 
     struct file* darr0[3] = {&f[1],&f[2],&f[3]};
-    struct file* darr2[2] = {&f[4],&f[5]};
+    struct file* darr2[3] = {&f[4],&f[5]};
     struct file* darr6[3] = {&f[3],&f[5],&f[7]};
 
     int iarr0[5] = {1,2,3,4,5};
     int iarr2[5] = {0,100};
 
-    struct dep d0 = {darr0,3,"dep0",iarr0};
-    struct dep d2 = {darr2,2,"dep2",iarr2};
+    int pi1[3] = {0,1,2};
+    int pi2[1] = {4};
+    int pi3[6] = {6,7,8,9,10,11};
+    int pi4[3] = {3,2};
+
+    struct dep d0 = {darr0,3,"dep0",iarr0,{pi1,pi2,pi3,pi4},{3,1,6,3}};
+    struct dep d2 = {darr2,3,"dep2",iarr2,{pi1,pi2,pi3,pi4},{3,1,6,3}};
     struct dep d6 = {darr6,3,"dep6"};
 
 #define STRUCT_FILE_INIT(n) do {    \
@@ -146,13 +187,16 @@ int main(void) {
     f[0].farr = &farr;
 
     FLATTEN_STRUCT(file,&f[0]);
-    FLATTEN_STRUCT_ARRAY_SIZE(file,&farr.files[0],8);
+    FLATTEN_STRUCT_ARRAY(file,&farr.files[0],8);
 
-    binary_stream_print();
-    interval_tree_print(&imap_root);
+    binary_stream_calculate_index();
+    binary_stream_update_pointers();
+    //binary_stream_print();
+    //interval_tree_print(&imap_root);
 
     binary_stream_destroy();
     interval_tree_destroy(&imap_root);
+    fixup_list_destroy();
 
 	return 0;
 }

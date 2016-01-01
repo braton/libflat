@@ -7,6 +7,7 @@ struct command {
     char* cmd;
     char** values;
     int size;
+    float**** deep_fp_value;
 };
 
 FUNCTION_DECLARE_FLATTEN_STRUCT(command);
@@ -16,7 +17,9 @@ struct dep {
     int n;
     char* fno;
     int* arr;
-};
+    int* pi[4];
+    int pi_size[4];
+} __attribute__((packed));
 
 FUNCTION_DECLARE_FLATTEN_STRUCT(dep);
 
@@ -40,7 +43,6 @@ struct filearr {
 	struct file* files;
 };
 
-INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY_SIZE(file);
 FUNCTION_DECLARE_FLATTEN_STRUCT(filearr);
 
 #endif

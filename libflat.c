@@ -84,6 +84,17 @@ struct blstream* binary_stream_insert_back(const void* data, size_t size, struct
 	return v;
 }
 
+void binary_stream_calculate_index() {
+	struct blstream* p = bhead;
+	unsigned long index=0;
+    while(p) {
+    	struct blstream* cp = p;
+    	p = p->next;
+    	cp->index = index;
+    	index+=cp->size;
+    }
+}
+
 void binary_stream_destroy() {
 	bptr = bhead;
     while(bptr) {
@@ -94,22 +105,39 @@ void binary_stream_destroy() {
     }
 }
 
+static void binary_stream_element_print(struct blstream* p) {
+	size_t i;
+	printf("(%lu){%lu}[ ",p->index,p->size);
+	for (i=0; i<p->size; ++i) {
+		printf("%02x ",((unsigned char*)(p->data))[i]);
+	}
+	printf("]\n");
+}
+
 void binary_stream_print() {
 
 	struct blstream* cp = bhead;
 	size_t total_size = 0;
     while(cp) {
     	struct blstream* p = cp;
-    	size_t i;
     	cp = cp->next;
-    	printf("{%lu}[ ",p->size);
+    	binary_stream_element_print(p);
     	total_size+=p->size;
-    	for (i=0; i<p->size; ++i) {
-    		printf("%02x ",((unsigned char*)(p->data))[i]);
-    	}
-    	printf("]\n");
     }
     printf("@ Total size: %lu\n",total_size);
+}
+
+void binary_stream_update_pointers() {
+	struct fixup_node* p = fhead;
+	int count=0;
+    while(p) {
+    	struct fixup_node* cp = p;
+    	p = p->next;
+    	void* newptr = (void*)(cp->ptr->node->storage->index+cp->ptr->offset);
+    	memcpy(&((unsigned char*)cp->node->storage->data)[cp->offset],&newptr,sizeof(void*));
+    	count++;
+    }
+    printf("@ %d pointers udpated\n",count);
 }
 
 struct fixup_node *fhead,*ftail;
@@ -195,5 +223,54 @@ void interval_tree_destroy(struct rb_root *root) {
     }
 }
 
-FUNCTION_DEFINE_FLATTEN_PLAIN_TYPE(char);
-FUNCTION_DEFINE_FLATTEN_PLAIN_TYPE(int);
+struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
+
+	assert(_sz>0);
+	struct interval_tree_node *node = interval_tree_iter_first(&imap_root, (uint64_t)_ptr, (uint64_t)_ptr+_sz-1);
+	struct flatten_pointer* r = 0;
+	if (node) {
+		uint64_t p = (uint64_t)_ptr;
+		struct interval_tree_node *prev;
+		while(node) {
+			if (node->start>p) {
+				assert(node->storage!=0);
+				struct interval_tree_node* nn = calloc(1,sizeof(struct interval_tree_node));
+				assert(nn!=0);
+				nn->start = p;
+				nn->last = node->start-1;
+				nn->storage = binary_stream_insert_front((void*)p,node->start-p,node->storage);
+				interval_tree_insert(nn, &imap_root);
+				if (r==0) {
+					r = make_flatten_pointer(nn,0);
+				}
+			}
+			else {
+				if (r==0) {
+					r = make_flatten_pointer(node,p-node->start);
+				}
+			}
+			p = node->last+1;
+			prev = node;
+			node = interval_tree_iter_next(node, (uint64_t)_ptr, (uint64_t)_ptr+_sz-1);
+		}
+		if ((uint64_t)_ptr+_sz>p) {
+			assert(prev->storage!=0);
+			struct interval_tree_node* nn = calloc(1,sizeof(struct interval_tree_node));
+			assert(nn!=0);
+			nn->start = p;
+			nn->last = (uint64_t)_ptr+_sz-1;
+			nn->storage = binary_stream_insert_back((void*)p,(uint64_t)_ptr+_sz-p,prev->storage);
+			interval_tree_insert(nn, &imap_root);
+		}
+		return r;
+	}
+	else {
+		node = calloc(1,sizeof(struct interval_tree_node));
+		assert(node!=0);
+		node->start = (uint64_t)_ptr;
+		node->last = (uint64_t)_ptr + _sz-1;
+		node->storage = binary_stream_append(_ptr,_sz);
+		interval_tree_insert(node, &imap_root);
+		return make_flatten_pointer(node,0);
+	}
+}

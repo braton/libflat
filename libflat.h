@@ -22,6 +22,7 @@ struct blstream {
 	struct blstream* prev;
 	void* data;
 	size_t size;
+	unsigned long index;
 } bs;
 
 extern struct blstream *bhead,*bptr;
@@ -30,6 +31,8 @@ struct blstream* binary_stream_append_reserve(size_t size);
 struct blstream* binary_stream_update(const void* data, size_t size, struct blstream* where);
 struct blstream* binary_stream_insert_front(const void* data, size_t size, struct blstream* where);
 struct blstream* binary_stream_insert_back(const void* data, size_t size, struct blstream* where);
+void binary_stream_calculate_index();
+void binary_stream_update_pointers();
 void binary_stream_destroy();
 void binary_stream_print();
 
@@ -61,154 +64,128 @@ static inline struct flatten_pointer* make_flatten_pointer(struct interval_tree_
 	return v;
 }
 
-typedef size_t (*calc_fun_char)(const char*);
-
 static inline size_t strmemlen(const char* s) {
 	return strlen(s)+1;
 }
 
+static inline size_t ptrarrmemlen(const void* const* m) {
+	size_t count=1;
+	while(*m) {
+		count++;
+		m++;
+	}
+	return count;
+}
+
+#define ATTR(f)	((_ptr)->f)
+
 #define FLATTEN_STRUCT(T,p)	(p)?((void*)flatten_struct_##T((p))):(0)
 
 #define AGGREGATE_FLATTEN_STRUCT(T,f)	do {	\
-    	if ((_ptr)->f) {	\
-    		fixup_list_append(node,offsetof(_container_type,f),flatten_struct_##T((_ptr)->f));	\
+    	if (ATTR(f)) {	\
+    		fixup_list_append(__node,offsetof(_container_type,f),flatten_struct_##T(ATTR(f)));	\
 		}	\
 	} while(0)
 
-#define INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY_SIZE(FLTYPE)	\
-static inline struct flatten_pointer* flatten_struct_##FLTYPE##_array_size(struct FLTYPE* _p, int n) {	\
+
+#define INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY(FLTYPE)	\
+static inline struct flatten_pointer* flatten_struct_##FLTYPE##_array(struct FLTYPE* _p, int n) {	\
 	int _i;	\
 	void* _fp_first=0;	\
 	for (_i=0; _i<n; ++_i) {	\
 		void* _fp = (void*)flatten_struct_##FLTYPE(_p+_i);	\
 		if (!_fp_first) _fp_first=_fp;	\
+		else free(_fp);	\
 	}	\
     return _fp_first;	\
 }
 
-#define FLATTEN_STRUCT_ARRAY_SIZE(T,p,n)	(p)?((void*)flatten_struct_##T##_array_size((p),(n))):(0)
+#define FLATTEN_STRUCT_ARRAY(T,p,n)	(p)?((void*)flatten_struct_##T##_array((p),(n))):(0)
 
-#define AGGREGATE_FLATTEN_STRUCT_ARRAY_SIZE(T,f,n)	do {	\
-    	if ((_ptr)->f) {	\
+#define AGGREGATE_FLATTEN_STRUCT_ARRAY(T,f,n)	do {	\
+    	if (ATTR(f)) {	\
     		int _i;	\
     		void* _fp_first=0;	\
     		for (_i=0; _i<(n); ++_i) {	\
-    			void* _fp = (void*)flatten_struct_##T((_ptr)->f+_i);	\
+    			void* _fp = (void*)flatten_struct_##T(ATTR(f)+_i);	\
     			if (!_fp_first) _fp_first=_fp;	\
+    			else free(_fp);	\
     		}	\
-		    fixup_list_append(node,offsetof(_container_type,f),_fp_first);	\
+		    fixup_list_append(__node,offsetof(_container_type,f),_fp_first);	\
 		}	\
 	} while(0)
 
-#define FLATTEN_STRING(p)	(p)?((void*)flatten_plain_char_calc((p),strmemlen)):(0)
+#define FLATTEN_STRING(p)	(p)?((void*)flatten_plain_type((p),strmemlen(p))):(0)
 
 #define AGGREGATE_FLATTEN_STRING(f)   do {  \
-        if ((_ptr)->f) {   \
-        	fixup_list_append(node,offsetof(_container_type,f),flatten_plain_char_calc((_ptr)->f,strmemlen));	\
+        if (ATTR(f)) {   \
+        	fixup_list_append(__node,offsetof(_container_type,f),flatten_plain_type(ATTR(f),strmemlen(ATTR(f))));	\
         }   \
     } while(0)
 
-#define FLATTEN_TYPE_ARRAY_SIZE(T,p,n)	(p)?((void*)flatten_plain_##T##_size((p),(n)*sizeof(T))):(0)
+struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz);
 
-#define AGGREGATE_FLATTEN_TYPE_ARRAY_SIZE(T,f,n)   do {  \
-        if ((_ptr)->f) {   \
-            fixup_list_append(node,offsetof(_container_type,f),flatten_plain_##T##_size((_ptr)->f,(n)*sizeof(T)));	\
+#define FLATTEN_TYPE(T,p)	(p)?((void*)flatten_plain_type((p),sizeof(T))):(0)
+
+#define AGGREGATE_FLATTEN_TYPE(T,f)   do {  \
+        if (ATTR(f)) {   \
+            fixup_list_append(__node,offsetof(_container_type,f),flatten_plain_type(ATTR(f),sizeof(T)));	\
         }   \
     } while(0)
+
+#define FLATTEN_TYPE_ARRAY(T,p,n)	(p)?((void*)flatten_plain_type((p),(n)*sizeof(T))):(0)
+
+#define AGGREGATE_FLATTEN_TYPE_ARRAY(T,f,n)   do {  \
+        if (ATTR(f)) {   \
+            fixup_list_append(__node,offsetof(_container_type,f),flatten_plain_type(ATTR(f),(n)*sizeof(T)));	\
+        }   \
+    } while(0)
+
+#define FOREACH_POINTER(PTRTYPE,v,p,s,...)	do {	\
+		PTRTYPE const * _m = (PTRTYPE const *)(p);	\
+		size_t _i, _sz = (s);	\
+		for (_i=0; _i<_sz; ++_i) {	\
+			PTRTYPE v = (_m+_i)?(*(_m+_i)):(0);	\
+			
+			__VA_ARGS__	\
+		}	\
+	} while(0)
+
+#define FOR_POINTER(PTRTYPE,v,p,...)	do {	\
+		PTRTYPE const * _m = (PTRTYPE const *)(p);	\
+		PTRTYPE v = (_m)?(*(_m)):(0);	\
+		__VA_ARGS__;	\
+	} while(0)
 
 #define FUNCTION_DEFINE_FLATTEN_STRUCT(FLTYPE,...)	\
 /* */		\
 			\
-struct flatten_pointer* flatten_struct_##FLTYPE(struct FLTYPE* _ptr) {	\
+struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 			\
 	typedef struct FLTYPE _container_type;	\
 			\
-	struct interval_tree_node *node = interval_tree_iter_first(&imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
-	if (node) {	\
-		assert(node->start==(uint64_t)_ptr);	\
-		assert(node->last==(uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
-		return make_flatten_pointer(node,0);	\
+	struct interval_tree_node *__node = interval_tree_iter_first(&imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
+	if (__node) {	\
+		assert(__node->start==(uint64_t)_ptr);	\
+		assert(__node->last==(uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
+		return make_flatten_pointer(__node,0);	\
 	}	\
 	else {	\
-		node = calloc(1,sizeof(struct interval_tree_node));	\
-		assert(node!=0);	\
-		node->start = (uint64_t)_ptr;	\
-		node->last = (uint64_t)_ptr + sizeof(struct FLTYPE)-1;	\
-		node->storage = binary_stream_append_reserve(sizeof(struct FLTYPE));	\
-		interval_tree_insert(node, &imap_root);	\
+		__node = calloc(1,sizeof(struct interval_tree_node));	\
+		assert(__node!=0);	\
+		__node->start = (uint64_t)_ptr;	\
+		__node->last = (uint64_t)_ptr + sizeof(struct FLTYPE)-1;	\
+		__node->storage = binary_stream_append_reserve(sizeof(struct FLTYPE));	\
+		interval_tree_insert(__node, &imap_root);	\
 	}	\
 		\
 	__VA_ARGS__	\
-	binary_stream_update(_ptr,sizeof(struct FLTYPE),node->storage);	\
-    return make_flatten_pointer(node,0);	\
+	binary_stream_update(_ptr,sizeof(struct FLTYPE),__node->storage);	\
+    return make_flatten_pointer(__node,0);	\
 }
 
 #define FUNCTION_DECLARE_FLATTEN_STRUCT(FLTYPE)	\
-	extern struct flatten_pointer* flatten_struct_##FLTYPE(struct FLTYPE*)
-
-#define FUNCTION_DEFINE_FLATTEN_PLAIN_TYPE(FLTYPE)	\
-/* */		\
-			\
-struct flatten_pointer* flatten_plain_##FLTYPE##_size(const FLTYPE* _ptr, size_t _sz) {	\
-			\
-	struct interval_tree_node *node = interval_tree_iter_first(&imap_root, (uint64_t)_ptr, (uint64_t)_ptr+_sz-1);	\
-	struct flatten_pointer* r = 0;	\
-	if (node) {	\
-		uint64_t p = (uint64_t)_ptr;	\
-		struct interval_tree_node *prev;	\
-		while(node) {	\
-			if (node->start>p) {	\
-				assert(node->storage!=0);	\
-				struct interval_tree_node* nn = calloc(1,sizeof(struct interval_tree_node));	\
-				assert(nn!=0);	\
-				nn->start = p;	\
-				nn->last = node->start-1;	\
-				nn->storage = binary_stream_insert_front((void*)p,node->start-p,node->storage);	\
-				interval_tree_insert(nn, &imap_root);	\
-				if (r==0) {	\
-					r = make_flatten_pointer(nn,0);	\
-				}	\
-			}	\
-			else {	\
-				if (r==0) {	\
-					r = make_flatten_pointer(node,p-node->start);	\
-				}	\
-			}	\
-			p = node->last+1;	\
-			prev = node;	\
-			node = interval_tree_iter_next(node, (uint64_t)_ptr, (uint64_t)_ptr+_sz-1);	\
-		}	\
-		if ((uint64_t)_ptr+_sz>p) {	\
-			assert(prev->storage!=0);	\
-			struct interval_tree_node* nn = calloc(1,sizeof(struct interval_tree_node));	\
-			assert(nn!=0);	\
-			nn->start = p;	\
-			nn->last = (uint64_t)_ptr+_sz-1;	\
-			nn->storage = binary_stream_insert_back((void*)p,(uint64_t)_ptr+_sz-p,prev->storage);	\
-			interval_tree_insert(nn, &imap_root);	\
-		}	\
-		return r;	\
-	}	\
-	else {	\
-		node = calloc(1,sizeof(struct interval_tree_node));	\
-		assert(node!=0);	\
-		node->start = (uint64_t)_ptr;	\
-		node->last = (uint64_t)_ptr + _sz-1;	\
-		node->storage = binary_stream_append(_ptr,_sz);	\
-		interval_tree_insert(node, &imap_root);	\
-		return make_flatten_pointer(node,0);	\
-	}	\
-}
-
-#define FUNCTION_DECLARE_FLATTEN_PLAIN_TYPE(FLTYPE)	\
-	struct flatten_pointer* flatten_plain_##FLTYPE##_size(const FLTYPE* _ptr, size_t _sz);
-
-FUNCTION_DECLARE_FLATTEN_PLAIN_TYPE(char);
-FUNCTION_DECLARE_FLATTEN_PLAIN_TYPE(int);
-
-static inline struct flatten_pointer* flatten_plain_char_calc(const char* v, calc_fun_char f) {
-	
-	return flatten_plain_char_size(v,f(v));
-}
+	extern struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE*);	\
+	INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY(FLTYPE)
 
 #endif /* __LIBFLAT_H__ */
