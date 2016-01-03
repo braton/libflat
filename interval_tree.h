@@ -11,7 +11,7 @@ struct interval_tree_node {
 	struct blstream* storage;
 };
 
-extern void
+extern struct rb_node*
 interval_tree_insert(struct interval_tree_node *node, struct rb_root *root);
 
 extern void

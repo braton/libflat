@@ -1,7 +1,5 @@
 #include "libflat.h"
 
-struct blstream *bhead,*bptr;
-
 static struct blstream* create_binary_stream_element(size_t size) {
 	struct blstream* n = calloc(1,sizeof(struct blstream));
 	assert(n!=0);
@@ -14,6 +12,7 @@ static struct blstream* create_binary_stream_element(size_t size) {
 
 struct blstream* binary_stream_append(const void* data, size_t size) {
 	struct blstream* v = create_binary_stream_element(size);
+	assert(v!=0);
 	memcpy(v->data,data,size);
     if (!bhead) {
         bhead = v;
@@ -56,7 +55,25 @@ struct blstream* binary_stream_update(const void* data, size_t size, struct blst
 
 struct blstream* binary_stream_insert_front(const void* data, size_t size, struct blstream* where) {
 	struct blstream* v = create_binary_stream_element(size);
+	assert(v!=0);
 	memcpy(v->data,data,size);
+	v->next = where;
+	v->prev = where->prev;
+	if (where->prev) {
+		where->prev->next = v;
+	}
+	else {
+		bhead = v;
+	}
+	where->prev = v;
+	return v;
+}
+
+struct blstream* binary_stream_insert_front_reserve(size_t size, struct blstream* where) {
+	struct blstream* v = calloc(1,sizeof(struct blstream));
+	assert(v!=0);
+	v->data = 0;
+	v->size = size;
 	v->next = where;
 	v->prev = where->prev;
 	if (where->prev) {
@@ -71,7 +88,25 @@ struct blstream* binary_stream_insert_front(const void* data, size_t size, struc
 
 struct blstream* binary_stream_insert_back(const void* data, size_t size, struct blstream* where) {
 	struct blstream* v = create_binary_stream_element(size);
+	assert(v!=0);
 	memcpy(v->data,data,size);
+	v->next = where->next;
+	v->prev = where;
+	if (where->next) {
+		where->next->prev = v;
+	}
+	else {
+		bptr = v;
+	}
+	where->next = v;
+	return v;
+}
+
+struct blstream* binary_stream_insert_back_reserve(size_t size, struct blstream* where) {
+	struct blstream* v = calloc(1,sizeof(struct blstream));
+	assert(v!=0);
+	v->data = 0;
+	v->size = size;
 	v->next = where->next;
 	v->prev = where;
 	if (where->next) {
@@ -107,7 +142,7 @@ void binary_stream_destroy() {
 
 static void binary_stream_element_print(struct blstream* p) {
 	size_t i;
-	printf("(%lu){%lu}[ ",p->index,p->size);
+	printf("(%lu){%lu}{%016lx}[ ",p->index,p->size,(unsigned long)p);
 	for (i=0; i<p->size; ++i) {
 		printf("%02x ",((unsigned char*)(p->data))[i]);
 	}
@@ -170,8 +205,6 @@ void binary_stream_update_pointers() {
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 
-struct rb_root fixup_set_root = RB_ROOT;
-
 #define ADDR_KEY(p)	((unsigned long)(p)->inode + (p)->offset)
 
 struct fixup_set_node* create_fixup_set_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
@@ -203,6 +236,12 @@ struct fixup_set_node *fixup_set_search(unsigned long v) {
 }
 
 int fixup_set_insert(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
+
+	if (node==0) {
+		root_addr = offset;
+		free(ptr);
+		return 0;
+	}
 
 	struct fixup_set_node* inode = fixup_set_search((unsigned long)node+offset);
 
@@ -286,7 +325,7 @@ void interval_tree_print(struct rb_root *root) {
 	size_t total_size=0;
 	while(p) {
 		struct interval_tree_node* node = (struct interval_tree_node*)p;
-		printf("[%016lx:%016lx]{%016lx}\n",node->start,node->last,(unsigned long)node->storage);
+		printf("[%016lx:%016lx](%lu){%016lx}\n",node->start,node->last,node->last-node->start+1,(unsigned long)node->storage);
 		total_size+=node->last-node->start+1;
 		p = rb_next(p);
 	};
@@ -335,8 +374,22 @@ struct flatten_pointer* get_pointer_node(const void* _ptr) {
 		assert(node!=0);
 		node->start = (uint64_t)_ptr;
 		node->last = (uint64_t)_ptr + sizeof(void*)-1;
-		node->storage = binary_stream_append(_ptr,sizeof(void*));
-		interval_tree_insert(node, &imap_root);
+		struct rb_node* rb = interval_tree_insert(node, &imap_root);
+		struct rb_node* prev = rb_prev(rb);
+		struct blstream* storage;
+		if (prev) {
+			storage = binary_stream_insert_back(_ptr,sizeof(void*),((struct interval_tree_node*)prev)->storage);
+		}
+		else {
+			struct rb_node* next = rb_next(rb);
+			if (next) {
+				storage = binary_stream_insert_front(_ptr,sizeof(void*),((struct interval_tree_node*)next)->storage);
+			}
+			else {
+				storage = binary_stream_append(_ptr,sizeof(void*));
+			}
+		}
+		node->storage = storage;		
 		return make_flatten_pointer(node,0);
 	}
 }
@@ -387,8 +440,22 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
 		assert(node!=0);
 		node->start = (uint64_t)_ptr;
 		node->last = (uint64_t)_ptr + _sz-1;
-		node->storage = binary_stream_append(_ptr,_sz);
-		interval_tree_insert(node, &imap_root);
+		struct blstream* storage;
+		struct rb_node* rb = interval_tree_insert(node, &imap_root);
+		struct rb_node* prev = rb_prev(rb);
+		if (prev) {
+			storage = binary_stream_insert_back(_ptr,_sz,((struct interval_tree_node*)prev)->storage);
+		}
+		else {
+			struct rb_node* next = rb_next(rb);
+			if (next) {
+				storage = binary_stream_insert_front(_ptr,_sz,((struct interval_tree_node*)next)->storage);
+			}
+			else {
+				storage = binary_stream_append(_ptr,_sz);
+			}
+		}
+		node->storage = storage;		
 		return make_flatten_pointer(node,0);
 	}
 }
@@ -396,38 +463,34 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
 void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 	size_t i;
 	void* mem = memory+hdr->ptr_count*sizeof(unsigned long);
-
-	/*int j;
-	printf("(%016lx)[ ",(unsigned long)mem);
-	for (j=0; j<hdr->memory_size; ++j) {
-		if ((j>0)&&(j%16==0)) printf("\n");
-		printf("%02x ",((unsigned char*)(mem))[j]);
-	}
-	printf("]\n");
-	int u=5;*/
-
 	for (i=0; i<hdr->ptr_count; ++i) {
 		unsigned long fix_loc = *((unsigned long*)memory+i);
 		unsigned long ptr = *((unsigned long*)(mem+fix_loc));
-		//printf("@ fix_loc(%lu) : ptr(%lu)\n",fix_loc,ptr);
-		/* Make the fix */
 		*((void**)(mem+fix_loc)) = mem + ptr;
-
-		/*if (i<=u) {
-			printf("(%016lx)[ ",(unsigned long)mem);
-			for (j=0; j<hdr->memory_size; ++j) {
-				if ((j>0)&&(j%16==0)) printf("\n");
-				printf("%02x ",((unsigned char*)(mem))[j]);
-			}
-			printf("]\n");
-		}*/
 	}
-
-	/*printf("(%016lx)[ ",(unsigned long)mem);
-	for (j=0; j<hdr->memory_size; ++j) {
-		if ((j>0)&&(j%16==0)) printf("\n");
-		printf("%02x ",((unsigned char*)(mem))[j]);
-	}
-	printf("]\n");*/
-
 }
+
+void flatten_init() {
+}
+
+void flatten_save(FILE* ff) {
+	binary_stream_calculate_index();
+    binary_stream_update_pointers();
+    struct flatten_header hdr = { binary_stream_size(), fixup_set_count(), ROOT_PTR_OFFSET(f) };
+    printf("@ Memory size(%lu)\n@ Pointer count(%lu)\n@ Root pointer offset(%lu)\n",hdr.memory_size, hdr.ptr_count, ROOT_PTR_OFFSET(f));
+    fwrite(&hdr,sizeof(struct flatten_header),1,ff);
+    fixup_set_write(ff);
+    binary_stream_write(ff);
+}
+
+void flatten_debug_info() {
+	binary_stream_print();
+    interval_tree_print(&imap_root);
+    fixup_set_print();
+}
+
+void flatten_fini() {
+	binary_stream_destroy();
+    interval_tree_destroy(&imap_root);
+    fixup_set_destroy();
+}    

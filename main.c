@@ -251,8 +251,6 @@ static void print_struct_dep(struct dep* d, int indent, int recurse) {
 	printf("%s};\n",chr_indent);
 }
 
-struct rb_root imap_root = RB_ROOT;
-
 char* st[] = {
     "string0",
     "string1",
@@ -398,34 +396,22 @@ int main(void) {
     print_struct_file(&f[6],0,1);
     print_struct_file(&f[7],0,1);
 
-	struct file* pf = f;
-	FOR_ROOT_POINTER(pf,fpf,
-		FLATTEN_STRUCT_ARRAY(file,pf,8);
+
+	/* Flatten the struct file array structure */
+	flatten_init();
+
+	FOR_ROOT_POINTER(f,
+		FLATTEN_STRUCT_ARRAY(file,f,8);
 	);
-    
-    binary_stream_calculate_index();
-    binary_stream_update_pointers();
-//#define DEBUG_PRINT
-#ifdef DEBUG_PRINT
-    binary_stream_print();
-    interval_tree_print(&imap_root);
-    fixup_set_print();
-#endif
+	
+	FILE* ff = fopen("flatten.dat","w");
+	assert(ff!=0);
+	flatten_save(ff);
+	fclose(ff);
 
-    struct flatten_header hdr = { binary_stream_size(), fixup_set_count(), ROOT_PTR_OFFSET(fpf) };
-    printf("@ Memory size(%lu)\n@ Pointer count(%lu)\nRoot pointer offset(%lu)\n",hdr.memory_size, hdr.ptr_count, ROOT_PTR_OFFSET(fpf));
-
-    FILE* ff = fopen("flatten.dat","w");
-    assert(ff!=0);
-    fwrite(&hdr,sizeof(struct flatten_header),1,ff);
-    fixup_set_write(ff);
-    binary_stream_write(ff);
-    fclose(ff);
-
-    binary_stream_destroy();
-    interval_tree_destroy(&imap_root);
-    fixup_set_destroy();
+	flatten_fini();
 	return 0;
+
 #endif /* FLATTEN_TEST */
 
 #ifdef UNFLATTEN_TEST

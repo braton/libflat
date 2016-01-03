@@ -65,7 +65,7 @@ RB_DECLARE_CALLBACKS(static, ITPREFIX ## _augment, ITSTRUCT, ITRB,	      \
 									      \
 /* Insert / remove interval nodes from the tree */			      \
 									      \
-ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node, struct rb_root *root)	      \
+ITSTATIC struct rb_node* ITPREFIX ## _insert(ITSTRUCT *node, struct rb_root *root)	      \
 {									      \
 	struct rb_node **link = &root->rb_node, *rb_parent = 0;	      \
 	ITTYPE start = ITSTART(node), last = ITLAST(node);		      \
@@ -85,6 +85,7 @@ ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node, struct rb_root *root)	      \
 	node->ITSUBTREE = last;						      \
 	rb_link_node(&node->ITRB, rb_parent, link);			      \
 	rb_insert_augmented(&node->ITRB, root, &ITPREFIX ## _augment);	      \
+	return &node->ITRB;	\
 }									      \
 									      \
 ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node, struct rb_root *root)	      \

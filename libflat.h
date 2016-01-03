@@ -10,12 +10,7 @@
 #include <assert.h> 
 #include "interval_tree.h"
 
-extern struct rb_root imap_root;
-
-struct interval_nodelist {
-	struct interval_nodelist* next;
-	struct interval_tree_node* node;
-};
+/* Binary stream doubly linked list implementation */
 
 struct blstream {
 	struct blstream* next;
@@ -23,20 +18,30 @@ struct blstream {
 	void* data;
 	size_t size;
 	unsigned long index;
-} bs;
+};
 
-extern struct blstream *bhead,*bptr;
 struct blstream* binary_stream_append(const void* data, size_t size);
 struct blstream* binary_stream_append_reserve(size_t size);
-struct blstream* binary_stream_update(const void* data, size_t size, struct blstream* where);
 struct blstream* binary_stream_insert_front(const void* data, size_t size, struct blstream* where);
+struct blstream* binary_stream_insert_front_reserve(size_t size, struct blstream* where);
 struct blstream* binary_stream_insert_back(const void* data, size_t size, struct blstream* where);
+struct blstream* binary_stream_insert_back_reserve(size_t size, struct blstream* where);
+struct blstream* binary_stream_update(const void* data, size_t size, struct blstream* where);
 void binary_stream_calculate_index();
 void binary_stream_update_pointers();
 void binary_stream_destroy();
 void binary_stream_print();
 size_t binary_stream_size();
 size_t binary_stream_write(FILE* f);
+
+
+
+
+
+struct interval_nodelist {
+	struct interval_nodelist* next;
+	struct interval_tree_node* node;
+};
 
 struct flatten_pointer {
 	struct interval_tree_node* node;
@@ -49,7 +54,21 @@ struct flatten_header {
 	unsigned long root_ptr_offset;
 };
 
-extern struct rb_root fixup_set_root;
+void flatten_init();
+void flatten_save(FILE* f);
+void flatten_debug_info();
+void flatten_fini();
+
+struct FLCONTROL {
+	struct rb_root imap_root;
+	struct blstream *bhead
+	struct blstream *btail;
+	struct rb_root fixup_set_root; /* = RB_ROOT */
+	struct rb_root imap_root = RB_ROOT;	/* = RB_ROOT */
+
+	unsigned long root_addr;
+	/* List for root pointers */
+};
 
 struct fixup_set_node {
 	struct rb_node node;
@@ -67,6 +86,7 @@ void fixup_set_print();
 unsigned long fixup_set_count();
 void fixup_set_destroy();
 size_t fixup_set_write(FILE* f);
+
 
 static inline struct flatten_pointer* make_flatten_pointer(struct interval_tree_node* node, unsigned long offset) {
 	struct flatten_pointer* v = malloc(sizeof(struct flatten_pointer));
@@ -89,7 +109,7 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 	return count;
 }
 
-//#define DEBUG_FLATTEN_FUNCTION
+/* #define DEBUG_FLATTEN_FUNCTION */
 #ifdef DEBUG_FLATTEN_FUNCTION
 #define DBGM1(name,a1)					do { printf(#name "(" #a1 ")\n"); } while(0)
 #define DBGM2(name,a1,a2)				do { printf(#name "(" #a1 "," #a2 ")\n"); } while(0)
@@ -224,17 +244,21 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz);
 		}	\
 	} while(0)
 
-#define FOR_ROOT_POINTER(p,FLPTRV,...)	struct flatten_pointer FLPTRV; do {	\
-		DBGM2(FOR_ROOT_POINTER,p,FLPTRV);	\
+#define INSTALL_ROOT_POINTER(p)
+
+#define FOR_ROOT_POINTER(p,...)	do {	\
+		DBGM1(FOR_ROOT_POINTER,p);	\
 		if (p) {	\
-			struct flatten_pointer* __fptr = get_pointer_node(&p);	\
+			struct flatten_pointer* __fptr = make_flatten_pointer(0,(unsigned long)(p));	\
 			__VA_ARGS__;	\
-			FLPTRV = *__fptr;	\
 			free(__fptr);	\
+			INSTALL_ROOT_POINTER(p);	\
 		}	\
 	} while(0)
 
-#define ROOT_PTR_OFFSET(FLPTRV)	(FLPTRV.node->storage->index+FLPTRV.offset)
+
+#define PTRNODE(PTRV)	(interval_tree_iter_first(&imap_root, (uint64_t)(PTRV), (uint64_t)(PTRV)))
+#define ROOT_PTR_OFFSET(PTRV)	((assert(PTRNODE(PTRV)!=0),1)?(PTRNODE(PTRV)->storage->index + (((unsigned long)PTRV)-PTRNODE(PTRV)->start)):(0))
 #define ROOT_PTR(PTRTYPE,h,m)	((PTRTYPE)((m+h.ptr_count*sizeof(unsigned long)+h.root_ptr_offset)))
 
 #define FUNCTION_DEFINE_FLATTEN_STRUCT(FLTYPE,...)	\
@@ -255,12 +279,25 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 		assert(__node!=0);	\
 		__node->start = (uint64_t)_ptr;	\
 		__node->last = (uint64_t)_ptr + sizeof(struct FLTYPE)-1;	\
-		__node->storage = binary_stream_append_reserve(sizeof(struct FLTYPE));	\
-		interval_tree_insert(__node, &imap_root);	\
+		struct blstream* storage;	\
+		struct rb_node* rb = interval_tree_insert(__node, &imap_root);	\
+		struct rb_node* prev = rb_prev(rb);	\
+		if (prev) {	\
+			storage = binary_stream_insert_back(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)prev)->storage);	\
+		}	\
+		else {	\
+			struct rb_node* next = rb_next(rb);	\
+			if (next) {	\
+				storage = binary_stream_insert_front(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)next)->storage);	\
+			}	\
+			else {	\
+				storage = binary_stream_append(_ptr,sizeof(struct FLTYPE));	\
+			}	\
+		}	\
+		__node->storage = storage;	\
 	}	\
 		\
 	__VA_ARGS__	\
-	binary_stream_update(_ptr,sizeof(struct FLTYPE),__node->storage);	\
     return make_flatten_pointer(__node,0);	\
 }
 
