@@ -1,5 +1,6 @@
 #include "main.h"
 #include <math.h>
+#include <sys/time.h>
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(command,
 		AGGREGATE_FLATTEN_STRING(cmd);
@@ -53,6 +54,203 @@ FUNCTION_DEFINE_FLATTEN_STRUCT(filearr,
 		AGGREGATE_FLATTEN_STRUCT_ARRAY(file,files,8);
 	)
 
+static void print_int_array(int * ai, int indent, int len);
+static void print_struct_dep(struct dep* d, int indent, int recurse);
+static void print_struct_command(struct command* c, int indent);
+static void print_struct_file(struct file* f, int indent, int recurse);
+static void print_struct_filearr(struct filearr* farr, int indent, int recurse);
+
+static void print_struct_command(struct command* c, int indent) {
+	char chr_indent[indent+1];
+	memset(chr_indent,'\t',indent);
+	chr_indent[indent] = 0;
+	printf("%sstruct command {\n",chr_indent);
+	printf("%s\tcmd: (%s)\n",chr_indent,c->cmd);
+	printf("%s\tvalues:\n",chr_indent);
+	int i;
+	for (i=0; i<c->size; ++i) {
+		printf("%s\t\t(%s)\n",chr_indent,c->values[i]);
+	}
+	printf("%s\tsize: (%d)\n",chr_indent,c->size);
+	printf("%s\tdeep_fp_value: ",chr_indent);
+	if (c->deep_fp_value) {
+		if (*c->deep_fp_value) {
+			if (**c->deep_fp_value) {
+				if (***c->deep_fp_value) {
+					printf("**** -> *** -> ** -> -> * -> (%f)\n",****c->deep_fp_value);
+				}
+				else {
+					printf("**** -> *** -> ** -> 0\n");
+				}
+			}
+			else {
+				printf("**** -> *** -> 0\n");
+			}
+		}
+		else {
+			printf("**** -> 0\n");
+		}
+	}
+	else {
+		printf("0\n");
+	}
+
+	printf("%s};\n",chr_indent);
+}
+
+static void print_struct_file(struct file* f, int indent, int recurse) {
+	char chr_indent[indent+1];
+	memset(chr_indent,'\t',indent);
+	chr_indent[indent] = 0;
+	printf("%sstruct file {\n",chr_indent);
+	printf("%s\tname: (%s)\n",chr_indent,f->name);
+	printf("%s\tvalue: (%s)\n",chr_indent,f->value);
+	printf("%s\tp: (%d)\n",chr_indent,f->p);
+	printf("%s\tstp:\n",chr_indent);
+	int i;
+	size_t sz = ptrarrmemlen((const void * const*)f->stp);
+	for (i=0; i<sz; ++i) {
+		printf("%s\t\t(%s)\n",chr_indent,f->stp[i]);
+	}
+	printf("%s\tc: ",chr_indent);
+	if (f->c) {
+		printf("\n");
+		print_struct_command(f->c,indent+2);
+	}
+	else {
+		printf("0\n");
+	}
+	printf("%s\tnext: ",chr_indent);
+	if (f->next) {
+		printf("\n");
+		if (recurse) {
+			print_struct_file(f->next,indent+2,0);
+		}
+		else {
+			printf("%s\t(...)\n",chr_indent);
+		}
+	}
+	else {
+		printf("0\n");
+	}
+	printf("%s\tprev: ",chr_indent);
+	if (f->prev) {
+		printf("\n");
+		if (recurse) {
+			print_struct_file(f->prev,indent+2,0);
+		}
+		else {
+			printf("%s\t(...)\n",chr_indent);
+		}
+	}
+	else {
+		printf("0\n");
+	}
+	printf("%s\tc: ",chr_indent);
+	if (f->d) {
+		printf("\n");
+		if (recurse) {
+			print_struct_dep(f->d,indent+2,0);
+		}
+		else {
+			printf("%s\t(...)\n",chr_indent);
+		}
+	}
+	else {
+		printf("0\n");
+	}
+	printf("%s\tfarr: ",chr_indent);
+	if (f->farr) {
+		printf("\n");
+		if (recurse) {
+			print_struct_filearr(f->farr,indent+2,0);
+		}
+		else {
+			printf("%s\t(...)\n",chr_indent);
+		}
+	}
+	else {
+		printf("0\n");
+	}
+	printf("%s};\n",chr_indent);
+}
+
+static void print_int_array(int * ai, int indent, int len) {
+	char chr_indent[indent+1];
+	memset(chr_indent,'\t',indent);
+	chr_indent[indent] = 0;
+	if (!ai) {
+		printf("%s0\n",chr_indent);
+		return;
+	}
+	int i;
+	printf("%s[ ",chr_indent);
+	for (i=0; i<len; ++i) {
+		printf("%d ",ai[i]);
+	}
+	printf("]\n");
+}
+
+static void print_struct_filearr(struct filearr* farr, int indent, int recurse) {
+	char chr_indent[indent+1];
+	memset(chr_indent,'\t',indent);
+	chr_indent[indent] = 0;
+	printf("%sstruct filearr {\n",chr_indent);
+	printf("%s\tfiles:\n",chr_indent);
+	int i;
+	if (farr->files) {
+		printf("\n");
+		for (i=0; i<8; ++i) {
+			if (recurse) {
+				print_struct_file(&farr->files[i],indent+2,1);
+			}
+			else {
+				print_struct_file(&farr->files[i],indent+2,0);
+			}
+		}
+	}
+	else {
+		printf("0\n");
+	}
+}
+
+static void print_struct_dep(struct dep* d, int indent, int recurse) {
+	char chr_indent[indent+1];
+	memset(chr_indent,'\t',indent);
+	chr_indent[indent] = 0;
+	printf("%sstruct dep {\n",chr_indent);
+	printf("%s\tf:\n",chr_indent);
+	int i;
+	for (i=0; i<3; ++i) {
+		if (d->f[i]) {
+			if (recurse) {
+				print_struct_file(d->f[i],indent+2,1);
+			}
+			else {
+				print_struct_file(d->f[i],indent+2,0);
+			}
+		}
+		else {
+			printf("%s\t\t0\n",chr_indent);
+		}
+	}
+	printf("%s\tn: (%d)\n",chr_indent,d->n);
+	printf("%s\tfno: (%s)\n",chr_indent,d->fno);
+	printf("%s\tarr: \n",chr_indent);
+	print_int_array(d->arr,indent+2,5);
+	printf("%s\tpi: ",chr_indent);
+	if (d->pi) {
+		printf("\n");
+	}
+	else {
+		printf("0\n");
+	}
+	for (i=0; i<4; ++i) {
+		print_int_array(d->pi[i],indent+2,d->pi_size[i]);
+	}
+	printf("%s};\n",chr_indent);
+}
+
 struct rb_root imap_root = RB_ROOT;
 
 char* st[] = {
@@ -78,6 +276,9 @@ char* st[] = {
     "string19",
     0
 };
+
+#define FLATTEN_TEST
+//#define UNFLATTEN_TEST
 
 int main(void) {
 
@@ -131,6 +332,8 @@ int main(void) {
 	}
 	return 0;
 #endif
+
+#ifdef FLATTEN_TEST
 
 	float fp_value = M_PI;
     float* pfp = &fp_value;
@@ -186,17 +389,74 @@ int main(void) {
     f[0].name = &f[1].name[2];
     f[0].farr = &farr;
 
-    FLATTEN_STRUCT(file,&f[0]);
-    FLATTEN_STRUCT_ARRAY(file,&farr.files[0],8);
+    print_struct_file(&f[0],0,1);
+    print_struct_file(&f[1],0,1);
+    print_struct_file(&f[2],0,1);
+    print_struct_file(&f[3],0,1);
+    print_struct_file(&f[4],0,1);
+    print_struct_file(&f[5],0,1);
+    print_struct_file(&f[6],0,1);
+    print_struct_file(&f[7],0,1);
 
+	struct file* pf = f;
+	FOR_ROOT_POINTER(pf,fpf,
+		FLATTEN_STRUCT_ARRAY(file,pf,8);
+	);
+    
     binary_stream_calculate_index();
     binary_stream_update_pointers();
-    //binary_stream_print();
-    //interval_tree_print(&imap_root);
+//#define DEBUG_PRINT
+#ifdef DEBUG_PRINT
+    binary_stream_print();
+    interval_tree_print(&imap_root);
+    fixup_set_print();
+#endif
+
+    struct flatten_header hdr = { binary_stream_size(), fixup_set_count(), ROOT_PTR_OFFSET(fpf) };
+    printf("@ Memory size(%lu)\n@ Pointer count(%lu)\nRoot pointer offset(%lu)\n",hdr.memory_size, hdr.ptr_count, ROOT_PTR_OFFSET(fpf));
+
+    FILE* ff = fopen("flatten.dat","w");
+    assert(ff!=0);
+    fwrite(&hdr,sizeof(struct flatten_header),1,ff);
+    fixup_set_write(ff);
+    binary_stream_write(ff);
+    fclose(ff);
 
     binary_stream_destroy();
     interval_tree_destroy(&imap_root);
-    fixup_list_destroy();
-
+    fixup_set_destroy();
 	return 0;
+#endif /* FLATTEN_TEST */
+
+#ifdef UNFLATTEN_TEST
+
+	TIME_MARK_START(fread_b);
+	FILE* ff = fopen("flatten.dat","r");
+	struct flatten_header hdr;
+	fread(&hdr,sizeof(struct flatten_header),1,ff);
+	void* mem = malloc(hdr.memory_size+hdr.ptr_count*sizeof(unsigned long));
+	assert(mem!=0);
+	fread(mem,1,hdr.memory_size+hdr.ptr_count*sizeof(unsigned long),ff);
+	fclose(ff);
+	TIME_CHECK_ON(fread_b,fread_e);
+	TIME_MARK_START(fix_b);
+	fix_unflatten_memory(&hdr,mem);
+	TIME_CHECK_ON(fix_b,fix_e);
+	TIME_CHECK_ON(fread_b,fix_e);
+	struct file* f = ROOT_PTR(struct file*,hdr,mem);
+	/*printf("@{f}: %016lx\n",(unsigned long)f);
+	printf("@{f->name}: %016lx\n",(unsigned long)f->name);
+	printf("@{f->value}: %016lx\n",(unsigned long)f->value);*/
+	print_struct_file(f+0,0,1);
+    print_struct_file(f+1,0,1);
+    print_struct_file(f+2,0,1);
+    print_struct_file(f+3,0,1);
+    print_struct_file(f+4,0,1);
+    print_struct_file(f+5,0,1);
+    print_struct_file(f+6,0,1);
+    print_struct_file(f+7,0,1);
+	free(mem);
+	return 0;
+#endif
+
 }

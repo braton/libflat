@@ -114,6 +114,10 @@ static void binary_stream_element_print(struct blstream* p) {
 	printf("]\n");
 }
 
+static size_t binary_stream_element_write(struct blstream* p, FILE* f) {
+	return fwrite((unsigned char*)(p->data),1,p->size,f);
+}
+
 void binary_stream_print() {
 
 	struct blstream* cp = bhead;
@@ -127,61 +131,154 @@ void binary_stream_print() {
     printf("@ Total size: %lu\n",total_size);
 }
 
-void binary_stream_update_pointers() {
-	struct fixup_node* p = fhead;
-	int count=0;
-    while(p) {
-    	struct fixup_node* cp = p;
-    	p = p->next;
-    	void* newptr = (void*)(cp->ptr->node->storage->index+cp->ptr->offset);
-    	memcpy(&((unsigned char*)cp->node->storage->data)[cp->offset],&newptr,sizeof(void*));
-    	count++;
+size_t binary_stream_write(FILE* f) {
+	struct blstream* cp = bhead;
+	size_t written=0;
+    while(cp) {
+    	struct blstream* p = cp;
+    	cp = cp->next;
+    	written+=binary_stream_element_write(p,f);
     }
-    printf("@ %d pointers udpated\n",count);
+    return written;
 }
 
-struct fixup_node *fhead,*ftail;
+size_t binary_stream_size() {
+	
+	struct blstream* cp = bhead;
+	size_t total_size = 0;
+    while(cp) {
+    	struct blstream* p = cp;
+    	cp = cp->next;
+    	total_size+=p->size;
+    }
+    return total_size;
+}
 
-struct fixup_node* create_fixup_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
-	struct fixup_node* n = calloc(1,sizeof(struct fixup_node));
+void binary_stream_update_pointers() {
+	struct rb_node * p = rb_first(&fixup_set_root);
+	int count=0;
+	while(p) {
+    	struct fixup_set_node* node = (struct fixup_set_node*)p;
+    	void* newptr = (void*)node->ptr->node->storage->index+node->ptr->offset;
+    	memcpy(&((unsigned char*)node->inode->storage->data)[node->offset],&newptr,sizeof(void*));
+    	p = rb_next(p);
+    	count++;
+    }
+}
+
+#define container_of(ptr, type, member) ({			\
+	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+
+struct rb_root fixup_set_root = RB_ROOT;
+
+#define ADDR_KEY(p)	((unsigned long)(p)->inode + (p)->offset)
+
+struct fixup_set_node* create_fixup_set_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
+	struct fixup_set_node* n = calloc(1,sizeof(struct fixup_set_node));
 	assert(n!=0);
-	n->node = node;
+	n->inode = node;
 	n->offset = offset;
 	n->ptr = ptr;
 	return n;
 }
 
-void fixup_list_append(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
-	
-	struct fixup_node* nn = create_fixup_node_element(node, offset, ptr);
+struct fixup_set_node *fixup_set_search(unsigned long v) {
+	struct rb_node *node = fixup_set_root.rb_node;
 
-	if (!fhead) {
-        fhead = nn;
-        ftail = nn;
-    }
-    else {
-        ftail->next = nn;
-        ftail = ftail->next;
-    }
+	while (node) {
+		struct fixup_set_node *data = container_of(node, struct fixup_set_node, node);
+
+		if (v < ADDR_KEY(data)) {
+			node = node->rb_left;
+		}
+		else if (v > ADDR_KEY(data)) {
+			node = node->rb_right;
+		}
+		else
+			return data;
+	}
+
+	return 0;
 }
 
-void fixup_list_destroy() {
-	while(fhead) {
-    	struct fixup_node* p = fhead;
-    	fhead = fhead->next;
-    	free(p->ptr);
-    	free(p);
-    }
+int fixup_set_insert(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
+
+	struct fixup_set_node* inode = fixup_set_search((unsigned long)node+offset);
+
+	if (inode) {
+		assert(((unsigned long)inode->ptr->node+inode->ptr->offset)==((unsigned long)ptr->node+ptr->offset));
+		free(ptr);
+		return 0;
+	}
+
+	struct fixup_set_node *data = create_fixup_set_node_element(node,offset,ptr);
+	struct rb_node **new = &(fixup_set_root.rb_node), *parent = 0;
+
+	/* Figure out where to put new node */
+	while (*new) {
+		struct fixup_set_node *this = container_of(*new, struct fixup_set_node, node);
+
+		parent = *new;
+		if (ADDR_KEY(data) < ADDR_KEY(this))
+			new = &((*new)->rb_left);
+		else if (ADDR_KEY(data) > ADDR_KEY(this))
+			new = &((*new)->rb_right);
+		else
+			return 0;
+	}
+
+	/* Add new node and rebalance tree. */
+	rb_link_node(&data->node, parent, new);
+	rb_insert_color(&data->node, &fixup_set_root);
+
+	return 1;
 }
 
-void fixup_list_print() {
-	printf("[ ");
-	while(fhead) {
-    	struct fixup_node* p = fhead;
-    	fhead = fhead->next;
-    	printf("(%016lx:%lu)->(%016lx:%lu) ",(unsigned long)p->node,p->offset,(unsigned long)p->ptr->node,p->ptr->offset);
+void fixup_set_print() {
+	struct rb_node * p = rb_first(&fixup_set_root);
+	printf("[\n");
+	while(p) {
+    	struct fixup_set_node* node = (struct fixup_set_node*)p;
+    	unsigned long newptr = node->ptr->node->storage->index+node->ptr->offset;
+    	unsigned long origptr = node->inode->storage->index+node->offset;
+    	printf(" %8lu: (%016lx:%lu)->(%016lx:%lu) | %8lu <- %8lu\n",node->inode->storage->index,(unsigned long)node->inode,node->offset,(unsigned long)node->ptr->node,node->ptr->offset,origptr,newptr);
+    	p = rb_next(p);
     }
     printf("]\n");
+}
+
+size_t fixup_set_write(FILE* f) {
+	size_t written=0;
+	struct rb_node * p = rb_first(&fixup_set_root);
+	while(p) {
+    	struct fixup_set_node* node = (struct fixup_set_node*)p;
+    	unsigned long origptr = node->inode->storage->index+node->offset;
+    	written+=fwrite(&origptr,sizeof(unsigned long),1,f);
+    	p = rb_next(p);
+    }
+    return written;
+}
+
+unsigned long fixup_set_count() {
+	struct rb_node * p = rb_first(&fixup_set_root);
+	unsigned long count=0;
+	while(p) {
+		count++;
+    	p = rb_next(p);
+    }
+    return count;
+}
+
+void fixup_set_destroy() {
+	struct rb_node * p = rb_first(&fixup_set_root);
+	while(p) {
+		struct fixup_set_node* node = (struct fixup_set_node*)p;
+		rb_erase(p, &fixup_set_root);
+		p = rb_next(p);
+		free(node->ptr);
+		free(node);
+	};
 }
 
 void interval_tree_print(struct rb_root *root) {
@@ -191,7 +288,7 @@ void interval_tree_print(struct rb_root *root) {
 		struct interval_tree_node* node = (struct interval_tree_node*)p;
 		printf("[%016lx:%016lx]{%016lx}\n",node->start,node->last,(unsigned long)node->storage);
 		total_size+=node->last-node->start+1;
-		p = rb_next(p);	
+		p = rb_next(p);
 	};
 	printf("@ Total size: %lu\n",total_size);
 }
@@ -221,6 +318,27 @@ void interval_tree_destroy(struct rb_root *root) {
     	free(p->node);
     	free(p);
     }
+}
+
+struct flatten_pointer* get_pointer_node(const void* _ptr) {
+
+	assert(_ptr!=0);
+	struct interval_tree_node *node = interval_tree_iter_first(&imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(void*)-1);
+	if (node) {
+		uint64_t p = (uint64_t)_ptr;
+		assert(node->start<=p);
+		assert(node->last>=p+sizeof(void*)-1);
+		return make_flatten_pointer(node,p-node->start);
+	}
+	else {
+		node = calloc(1,sizeof(struct interval_tree_node));
+		assert(node!=0);
+		node->start = (uint64_t)_ptr;
+		node->last = (uint64_t)_ptr + sizeof(void*)-1;
+		node->storage = binary_stream_append(_ptr,sizeof(void*));
+		interval_tree_insert(node, &imap_root);
+		return make_flatten_pointer(node,0);
+	}
 }
 
 struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
@@ -273,4 +391,43 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
 		interval_tree_insert(node, &imap_root);
 		return make_flatten_pointer(node,0);
 	}
+}
+
+void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
+	size_t i;
+	void* mem = memory+hdr->ptr_count*sizeof(unsigned long);
+
+	/*int j;
+	printf("(%016lx)[ ",(unsigned long)mem);
+	for (j=0; j<hdr->memory_size; ++j) {
+		if ((j>0)&&(j%16==0)) printf("\n");
+		printf("%02x ",((unsigned char*)(mem))[j]);
+	}
+	printf("]\n");
+	int u=5;*/
+
+	for (i=0; i<hdr->ptr_count; ++i) {
+		unsigned long fix_loc = *((unsigned long*)memory+i);
+		unsigned long ptr = *((unsigned long*)(mem+fix_loc));
+		//printf("@ fix_loc(%lu) : ptr(%lu)\n",fix_loc,ptr);
+		/* Make the fix */
+		*((void**)(mem+fix_loc)) = mem + ptr;
+
+		/*if (i<=u) {
+			printf("(%016lx)[ ",(unsigned long)mem);
+			for (j=0; j<hdr->memory_size; ++j) {
+				if ((j>0)&&(j%16==0)) printf("\n");
+				printf("%02x ",((unsigned char*)(mem))[j]);
+			}
+			printf("]\n");
+		}*/
+	}
+
+	/*printf("(%016lx)[ ",(unsigned long)mem);
+	for (j=0; j<hdr->memory_size; ++j) {
+		if ((j>0)&&(j%16==0)) printf("\n");
+		printf("%02x ",((unsigned char*)(mem))[j]);
+	}
+	printf("]\n");*/
+
 }
