@@ -45,4 +45,12 @@ struct filearr {
 
 FUNCTION_DECLARE_FLATTEN_STRUCT(filearr);
 
+struct list {
+	struct list* next;
+	const char* name;
+	int value;
+};
+
+FUNCTION_DECLARE_FLATTEN_STRUCT(list);
+
 #endif

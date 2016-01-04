@@ -8,7 +8,42 @@
 #include <memory.h>
 #include <stdint.h>
 #include <assert.h> 
+#include <sys/time.h>
 #include "interval_tree.h"
+
+/* Main flattening structures and functions */
+
+void flatten_init();
+size_t flatten_write(FILE* f);
+void flatten_debug_info();
+void flatten_fini();
+void unflatten_init();
+size_t unflatten_read(FILE* f);
+void unflatten_fini();
+
+struct root_addrnode {
+	struct root_addrnode* next;
+	unsigned long root_addr;
+};
+
+struct flatten_header {
+	unsigned long memory_size;
+	unsigned long ptr_count;
+	unsigned long root_addr_count;
+};
+
+struct FLCONTROL {
+	struct blstream* bhead;
+	struct blstream* btail;
+	struct rb_root fixup_set_root;
+	struct rb_root imap_root;
+	struct flatten_header	HDR;
+	struct root_addrnode* rhead;
+	struct root_addrnode* rtail;
+	void* mem;
+};
+
+extern struct FLCONTROL FLCTRL;
 
 /* Binary stream doubly linked list implementation */
 
@@ -35,7 +70,36 @@ size_t binary_stream_size();
 size_t binary_stream_write(FILE* f);
 
 
+/* Set of memory fixup elements implemented using red-black tree */
 
+struct fixup_set_node {
+	struct rb_node node;
+  	/* Storage area and offset where the original address to be fixed is stored */
+	struct interval_tree_node* inode;
+	unsigned long offset;
+	/* Storage area and offset there the original address points to */
+	struct flatten_pointer* ptr;
+};
+
+int fixup_set_insert(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr);
+struct fixup_set_node *fixup_set_search(unsigned long v);
+void fixup_set_print();
+unsigned long fixup_set_count();
+void fixup_set_destroy();
+size_t fixup_set_write(FILE* f);
+
+/* Root address list */
+void root_addr_append(unsigned long root_addr);
+unsigned long root_addr_count();
+
+void fix_unflatten_memory(struct flatten_header* hdr, void* memory);
+void* root_pointer_next();
+
+#define container_of(ptr, type, member) ({			\
+	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+
+#define DBGC(b,...)		do { if (b!=0)	__VA_ARGS__; } while(0)
 
 
 struct interval_nodelist {
@@ -47,46 +111,6 @@ struct flatten_pointer {
 	struct interval_tree_node* node;
 	unsigned long offset;
 };
-
-struct flatten_header {
-	unsigned long memory_size;
-	unsigned long ptr_count;
-	unsigned long root_ptr_offset;
-};
-
-void flatten_init();
-void flatten_save(FILE* f);
-void flatten_debug_info();
-void flatten_fini();
-
-struct FLCONTROL {
-	struct rb_root imap_root;
-	struct blstream *bhead
-	struct blstream *btail;
-	struct rb_root fixup_set_root; /* = RB_ROOT */
-	struct rb_root imap_root = RB_ROOT;	/* = RB_ROOT */
-
-	unsigned long root_addr;
-	/* List for root pointers */
-};
-
-struct fixup_set_node {
-	struct rb_node node;
-  	/* Storage area and offset where the original address to be fixed is stored */
-	struct interval_tree_node* inode;
-	unsigned long offset;
-	/* Storage area and offset there the original address points to */
-	struct flatten_pointer* ptr;
-};
-
-struct fixup_set_node* create_fixup_set_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr);
-struct fixup_set_node *fixup_set_search(unsigned long v);
-int fixup_set_insert(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr);
-void fixup_set_print();
-unsigned long fixup_set_count();
-void fixup_set_destroy();
-size_t fixup_set_write(FILE* f);
-
 
 static inline struct flatten_pointer* make_flatten_pointer(struct interval_tree_node* node, unsigned long offset) {
 	struct flatten_pointer* v = malloc(sizeof(struct flatten_pointer));
@@ -244,7 +268,8 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz);
 		}	\
 	} while(0)
 
-#define INSTALL_ROOT_POINTER(p)
+#define PTRNODE(PTRV)	(interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)(PTRV), (uint64_t)(PTRV)))
+#define ROOT_POINTER_NEXT(PTRTYPE)	((PTRTYPE)(root_pointer_next()))
 
 #define FOR_ROOT_POINTER(p,...)	do {	\
 		DBGM1(FOR_ROOT_POINTER,p);	\
@@ -252,14 +277,9 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz);
 			struct flatten_pointer* __fptr = make_flatten_pointer(0,(unsigned long)(p));	\
 			__VA_ARGS__;	\
 			free(__fptr);	\
-			INSTALL_ROOT_POINTER(p);	\
+			root_addr_append( (unsigned long)(p) );	\
 		}	\
 	} while(0)
-
-
-#define PTRNODE(PTRV)	(interval_tree_iter_first(&imap_root, (uint64_t)(PTRV), (uint64_t)(PTRV)))
-#define ROOT_PTR_OFFSET(PTRV)	((assert(PTRNODE(PTRV)!=0),1)?(PTRNODE(PTRV)->storage->index + (((unsigned long)PTRV)-PTRNODE(PTRV)->start)):(0))
-#define ROOT_PTR(PTRTYPE,h,m)	((PTRTYPE)((m+h.ptr_count*sizeof(unsigned long)+h.root_ptr_offset)))
 
 #define FUNCTION_DEFINE_FLATTEN_STRUCT(FLTYPE,...)	\
 /* */		\
@@ -268,7 +288,7 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 			\
 	typedef struct FLTYPE _container_type;	\
 			\
-	struct interval_tree_node *__node = interval_tree_iter_first(&imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
+	struct interval_tree_node *__node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
 	if (__node) {	\
 		assert(__node->start==(uint64_t)_ptr);	\
 		assert(__node->last==(uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
@@ -280,7 +300,7 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 		__node->start = (uint64_t)_ptr;	\
 		__node->last = (uint64_t)_ptr + sizeof(struct FLTYPE)-1;	\
 		struct blstream* storage;	\
-		struct rb_node* rb = interval_tree_insert(__node, &imap_root);	\
+		struct rb_node* rb = interval_tree_insert(__node, &FLCTRL.imap_root);	\
 		struct rb_node* prev = rb_prev(rb);	\
 		if (prev) {	\
 			storage = binary_stream_insert_back(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)prev)->storage);	\
@@ -315,7 +335,5 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 		(double) (tv_mark_##start_marker##_##end_marker.tv_usec - tv_mark_##start_marker.tv_usec) / 1000000 +	\
 		         (double) (tv_mark_##start_marker##_##end_marker.tv_sec - tv_mark_##start_marker.tv_sec) );	\
 	} while(0)
-
-void fix_unflatten_memory(struct flatten_header* hdr, void* memory);
 
 #endif /* __LIBFLAT_H__ */

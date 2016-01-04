@@ -1,6 +1,5 @@
 #include "main.h"
 #include <math.h>
-#include <sys/time.h>
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(command,
 		AGGREGATE_FLATTEN_STRING(cmd);
@@ -54,11 +53,39 @@ FUNCTION_DEFINE_FLATTEN_STRUCT(filearr,
 		AGGREGATE_FLATTEN_STRUCT_ARRAY(file,files,8);
 	)
 
+FUNCTION_DEFINE_FLATTEN_STRUCT(list,
+		AGGREGATE_FLATTEN_STRUCT(list,next);
+		AGGREGATE_FLATTEN_STRING(name);
+	)
+
 static void print_int_array(int * ai, int indent, int len);
 static void print_struct_dep(struct dep* d, int indent, int recurse);
 static void print_struct_command(struct command* c, int indent);
 static void print_struct_file(struct file* f, int indent, int recurse);
 static void print_struct_filearr(struct filearr* farr, int indent, int recurse);
+static void print_struct_list(struct list* l, int indent, int recurse);
+
+static void print_struct_list(struct list* l, int indent, int recurse) {
+	char chr_indent[indent+1];
+	memset(chr_indent,'\t',indent);
+	chr_indent[indent] = 0;
+	printf("%sstruct list {\n",chr_indent);
+	printf("%s\tname: (%s)\n",chr_indent,l->name);
+	printf("%s\tnext: ",chr_indent);
+	if (l->next) {
+		printf("\n");
+		if (recurse) {
+			print_struct_list(l->next,indent+2,0);
+		}
+		else {
+			printf("%s\t(...)\n",chr_indent);
+		}
+	}
+	else {
+		printf("0\n");
+	}
+	printf("%s};\n",chr_indent);
+}
 
 static void print_struct_command(struct command* c, int indent) {
 	char chr_indent[indent+1];
@@ -275,8 +302,8 @@ char* st[] = {
     0
 };
 
-#define FLATTEN_TEST
-//#define UNFLATTEN_TEST
+//#define FLATTEN_TEST
+#define UNFLATTEN_TEST
 
 int main(void) {
 
@@ -339,6 +366,32 @@ int main(void) {
     float*** pppfp = &ppfp;
     float**** ppppfp = &pppfp;
 
+    const char* list_names[] = {"list1","list2","list3","list4","list5","list6"};
+    struct list* l1 = calloc(1,sizeof(struct list));
+    assert(l1!=0);
+    l1->name = list_names[0];
+    struct list* l2 = calloc(1,sizeof(struct list));
+    assert(l2!=0);
+    l2->name = list_names[1];
+    struct list* l3 = calloc(1,sizeof(struct list));
+    assert(l3!=0);
+    l3->name = list_names[2];
+    struct list* l4 = calloc(1,sizeof(struct list));
+    assert(l4!=0);
+    l4->name = list_names[3];
+    struct list* l5 = calloc(1,sizeof(struct list));
+    assert(l5!=0);
+    l5->name = list_names[4];
+    struct list* l6 = calloc(1,sizeof(struct list));
+    assert(l6!=0);
+    l6->name = list_names[4];
+    l1->next = l2;
+    l2->next = l3;
+    l3->next = l4;
+    l4->next = l5;
+    l5->next = l6;
+    l6->next = l1;
+
 	struct file f[8] = {};
 	struct filearr farr = {f};
     struct command c[8] = {
@@ -395,7 +448,12 @@ int main(void) {
     print_struct_file(&f[5],0,1);
     print_struct_file(&f[6],0,1);
     print_struct_file(&f[7],0,1);
-
+    print_struct_list(l1,0,1);
+    print_struct_list(l2,0,1);
+    print_struct_list(l3,0,1);
+    print_struct_list(l4,0,1);
+    print_struct_list(l5,0,1);
+    print_struct_list(l6,0,1);
 
 	/* Flatten the struct file array structure */
 	flatten_init();
@@ -403,10 +461,15 @@ int main(void) {
 	FOR_ROOT_POINTER(f,
 		FLATTEN_STRUCT_ARRAY(file,f,8);
 	);
+
+	FOR_ROOT_POINTER(l1,
+		FLATTEN_STRUCT(list,l1);
+	);
 	
 	FILE* ff = fopen("flatten.dat","w");
 	assert(ff!=0);
-	flatten_save(ff);
+	size_t wr = flatten_write(ff);
+	printf("%lu bytes written\n",wr);
 	fclose(ff);
 
 	flatten_fini();
@@ -416,23 +479,17 @@ int main(void) {
 
 #ifdef UNFLATTEN_TEST
 
-	TIME_MARK_START(fread_b);
+	/* Unflatten the struct file array structure */
+
+	unflatten_init();
+
 	FILE* ff = fopen("flatten.dat","r");
-	struct flatten_header hdr;
-	fread(&hdr,sizeof(struct flatten_header),1,ff);
-	void* mem = malloc(hdr.memory_size+hdr.ptr_count*sizeof(unsigned long));
-	assert(mem!=0);
-	fread(mem,1,hdr.memory_size+hdr.ptr_count*sizeof(unsigned long),ff);
+	unflatten_read(ff);
 	fclose(ff);
-	TIME_CHECK_ON(fread_b,fread_e);
-	TIME_MARK_START(fix_b);
-	fix_unflatten_memory(&hdr,mem);
-	TIME_CHECK_ON(fix_b,fix_e);
-	TIME_CHECK_ON(fread_b,fix_e);
-	struct file* f = ROOT_PTR(struct file*,hdr,mem);
-	/*printf("@{f}: %016lx\n",(unsigned long)f);
-	printf("@{f->name}: %016lx\n",(unsigned long)f->name);
-	printf("@{f->value}: %016lx\n",(unsigned long)f->value);*/
+
+	struct file* f = ROOT_POINTER_NEXT(struct file*);
+	struct list* l = ROOT_POINTER_NEXT(struct list*);
+	
 	print_struct_file(f+0,0,1);
     print_struct_file(f+1,0,1);
     print_struct_file(f+2,0,1);
@@ -441,7 +498,15 @@ int main(void) {
     print_struct_file(f+5,0,1);
     print_struct_file(f+6,0,1);
     print_struct_file(f+7,0,1);
-	free(mem);
+    print_struct_list(l,0,1);
+    print_struct_list(l->next,0,1);
+    print_struct_list(l->next->next,0,1);
+    print_struct_list(l->next->next->next,0,1);
+    print_struct_list(l->next->next->next->next,0,1);
+    print_struct_list(l->next->next->next->next->next,0,1);
+
+    unflatten_fini();
+	
 	return 0;
 #endif
 

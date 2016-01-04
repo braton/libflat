@@ -1,5 +1,7 @@
 #include "libflat.h"
 
+struct FLCONTROL FLCTRL = { .bhead = 0, .btail = 0, .fixup_set_root = RB_ROOT, .imap_root = RB_ROOT, .rhead = 0, .rtail = 0, .mem = 0 };
+
 static struct blstream* create_binary_stream_element(size_t size) {
 	struct blstream* n = calloc(1,sizeof(struct blstream));
 	assert(n!=0);
@@ -14,14 +16,14 @@ struct blstream* binary_stream_append(const void* data, size_t size) {
 	struct blstream* v = create_binary_stream_element(size);
 	assert(v!=0);
 	memcpy(v->data,data,size);
-    if (!bhead) {
-        bhead = v;
-        bptr = v;
+    if (!FLCTRL.bhead) {
+        FLCTRL.bhead = v;
+        FLCTRL.btail = v;
     }
     else {
-        v->prev = bptr;
-        bptr->next = v;
-        bptr = bptr->next;
+        v->prev = FLCTRL.btail;
+        FLCTRL.btail->next = v;
+        FLCTRL.btail = FLCTRL.btail->next;
     }
     return v;
 }
@@ -32,14 +34,14 @@ struct blstream* binary_stream_append_reserve(size_t size) {
 	assert(v!=0);
 	v->data = 0;
 	v->size = size;
-	if (!bhead) {
-        bhead = v;
-        bptr = v;
+	if (!FLCTRL.bhead) {
+        FLCTRL.bhead = v;
+        FLCTRL.btail = v;
     }
     else {
-        v->prev = bptr;
-        bptr->next = v;
-        bptr = bptr->next;
+        v->prev = FLCTRL.btail;
+        FLCTRL.btail->next = v;
+        FLCTRL.btail = FLCTRL.btail->next;
     }
     return v;
 }
@@ -63,7 +65,7 @@ struct blstream* binary_stream_insert_front(const void* data, size_t size, struc
 		where->prev->next = v;
 	}
 	else {
-		bhead = v;
+		FLCTRL.bhead = v;
 	}
 	where->prev = v;
 	return v;
@@ -80,7 +82,7 @@ struct blstream* binary_stream_insert_front_reserve(size_t size, struct blstream
 		where->prev->next = v;
 	}
 	else {
-		bhead = v;
+		FLCTRL.bhead = v;
 	}
 	where->prev = v;
 	return v;
@@ -96,7 +98,7 @@ struct blstream* binary_stream_insert_back(const void* data, size_t size, struct
 		where->next->prev = v;
 	}
 	else {
-		bptr = v;
+		FLCTRL.btail = v;
 	}
 	where->next = v;
 	return v;
@@ -113,14 +115,14 @@ struct blstream* binary_stream_insert_back_reserve(size_t size, struct blstream*
 		where->next->prev = v;
 	}
 	else {
-		bptr = v;
+		FLCTRL.btail = v;
 	}
 	where->next = v;
 	return v;
 }
 
 void binary_stream_calculate_index() {
-	struct blstream* p = bhead;
+	struct blstream* p = FLCTRL.bhead;
 	unsigned long index=0;
     while(p) {
     	struct blstream* cp = p;
@@ -131,10 +133,10 @@ void binary_stream_calculate_index() {
 }
 
 void binary_stream_destroy() {
-	bptr = bhead;
-    while(bptr) {
-    	struct blstream* p = bptr;
-    	bptr = bptr->next;
+	FLCTRL.btail = FLCTRL.bhead;
+    while(FLCTRL.btail) {
+    	struct blstream* p = FLCTRL.btail;
+    	FLCTRL.btail = FLCTRL.btail->next;
     	free(p->data);
     	free(p);
     }
@@ -155,7 +157,7 @@ static size_t binary_stream_element_write(struct blstream* p, FILE* f) {
 
 void binary_stream_print() {
 
-	struct blstream* cp = bhead;
+	struct blstream* cp = FLCTRL.bhead;
 	size_t total_size = 0;
     while(cp) {
     	struct blstream* p = cp;
@@ -167,7 +169,7 @@ void binary_stream_print() {
 }
 
 size_t binary_stream_write(FILE* f) {
-	struct blstream* cp = bhead;
+	struct blstream* cp = FLCTRL.bhead;
 	size_t written=0;
     while(cp) {
     	struct blstream* p = cp;
@@ -179,7 +181,7 @@ size_t binary_stream_write(FILE* f) {
 
 size_t binary_stream_size() {
 	
-	struct blstream* cp = bhead;
+	struct blstream* cp = FLCTRL.bhead;
 	size_t total_size = 0;
     while(cp) {
     	struct blstream* p = cp;
@@ -190,7 +192,7 @@ size_t binary_stream_size() {
 }
 
 void binary_stream_update_pointers() {
-	struct rb_node * p = rb_first(&fixup_set_root);
+	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
 	int count=0;
 	while(p) {
     	struct fixup_set_node* node = (struct fixup_set_node*)p;
@@ -201,13 +203,9 @@ void binary_stream_update_pointers() {
     }
 }
 
-#define container_of(ptr, type, member) ({			\
-	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-	(type *)( (char *)__mptr - offsetof(type,member) );})
-
 #define ADDR_KEY(p)	((unsigned long)(p)->inode + (p)->offset)
 
-struct fixup_set_node* create_fixup_set_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
+static struct fixup_set_node* create_fixup_set_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
 	struct fixup_set_node* n = calloc(1,sizeof(struct fixup_set_node));
 	assert(n!=0);
 	n->inode = node;
@@ -217,7 +215,7 @@ struct fixup_set_node* create_fixup_set_node_element(struct interval_tree_node* 
 }
 
 struct fixup_set_node *fixup_set_search(unsigned long v) {
-	struct rb_node *node = fixup_set_root.rb_node;
+	struct rb_node *node = FLCTRL.fixup_set_root.rb_node;
 
 	while (node) {
 		struct fixup_set_node *data = container_of(node, struct fixup_set_node, node);
@@ -238,7 +236,6 @@ struct fixup_set_node *fixup_set_search(unsigned long v) {
 int fixup_set_insert(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
 
 	if (node==0) {
-		root_addr = offset;
 		free(ptr);
 		return 0;
 	}
@@ -252,7 +249,7 @@ int fixup_set_insert(struct interval_tree_node* node, unsigned long offset, stru
 	}
 
 	struct fixup_set_node *data = create_fixup_set_node_element(node,offset,ptr);
-	struct rb_node **new = &(fixup_set_root.rb_node), *parent = 0;
+	struct rb_node **new = &(FLCTRL.fixup_set_root.rb_node), *parent = 0;
 
 	/* Figure out where to put new node */
 	while (*new) {
@@ -269,13 +266,13 @@ int fixup_set_insert(struct interval_tree_node* node, unsigned long offset, stru
 
 	/* Add new node and rebalance tree. */
 	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, &fixup_set_root);
+	rb_insert_color(&data->node, &FLCTRL.fixup_set_root);
 
 	return 1;
 }
 
 void fixup_set_print() {
-	struct rb_node * p = rb_first(&fixup_set_root);
+	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
 	printf("[\n");
 	while(p) {
     	struct fixup_set_node* node = (struct fixup_set_node*)p;
@@ -289,18 +286,19 @@ void fixup_set_print() {
 
 size_t fixup_set_write(FILE* f) {
 	size_t written=0;
-	struct rb_node * p = rb_first(&fixup_set_root);
+	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
 	while(p) {
     	struct fixup_set_node* node = (struct fixup_set_node*)p;
     	unsigned long origptr = node->inode->storage->index+node->offset;
-    	written+=fwrite(&origptr,sizeof(unsigned long),1,f);
+    	size_t wr = fwrite(&origptr,sizeof(unsigned long),1,f);
+    	written+=wr*sizeof(unsigned long);
     	p = rb_next(p);
     }
     return written;
 }
 
 unsigned long fixup_set_count() {
-	struct rb_node * p = rb_first(&fixup_set_root);
+	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
 	unsigned long count=0;
 	while(p) {
 		count++;
@@ -310,14 +308,38 @@ unsigned long fixup_set_count() {
 }
 
 void fixup_set_destroy() {
-	struct rb_node * p = rb_first(&fixup_set_root);
+	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
 	while(p) {
 		struct fixup_set_node* node = (struct fixup_set_node*)p;
-		rb_erase(p, &fixup_set_root);
+		rb_erase(p, &FLCTRL.fixup_set_root);
 		p = rb_next(p);
 		free(node->ptr);
 		free(node);
 	};
+}
+
+void root_addr_append(unsigned long root_addr) {
+    struct root_addrnode* v = calloc(1,sizeof(struct root_addrnode));
+    assert(v!=0);
+    v->root_addr = root_addr;
+    if (!FLCTRL.rhead) {
+        FLCTRL.rhead = v;
+        FLCTRL.rtail = v;
+    }
+    else {
+        FLCTRL.rtail->next = v;
+        FLCTRL.rtail = FLCTRL.rtail->next;
+    }
+}
+
+unsigned long root_addr_count() {
+	struct root_addrnode* p = FLCTRL.rhead;
+	unsigned long count = 0;
+    while(p) {
+    	count++;
+    	p = p->next;
+    }
+    return count;
 }
 
 void interval_tree_print(struct rb_root *root) {
@@ -337,7 +359,7 @@ void interval_tree_destroy(struct rb_root *root) {
 	struct rb_node * p = rb_first(root);
 	while(p) {
 		struct interval_tree_node* node = (struct interval_tree_node*)p;
-		interval_tree_remove(node,&imap_root);
+		interval_tree_remove(node,&FLCTRL.imap_root);
 		struct interval_nodelist* v = calloc(1,sizeof(struct interval_nodelist));
 		assert(v!=0);
 	    v->node = node;
@@ -362,7 +384,7 @@ void interval_tree_destroy(struct rb_root *root) {
 struct flatten_pointer* get_pointer_node(const void* _ptr) {
 
 	assert(_ptr!=0);
-	struct interval_tree_node *node = interval_tree_iter_first(&imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(void*)-1);
+	struct interval_tree_node *node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(void*)-1);
 	if (node) {
 		uint64_t p = (uint64_t)_ptr;
 		assert(node->start<=p);
@@ -374,7 +396,7 @@ struct flatten_pointer* get_pointer_node(const void* _ptr) {
 		assert(node!=0);
 		node->start = (uint64_t)_ptr;
 		node->last = (uint64_t)_ptr + sizeof(void*)-1;
-		struct rb_node* rb = interval_tree_insert(node, &imap_root);
+		struct rb_node* rb = interval_tree_insert(node, &FLCTRL.imap_root);
 		struct rb_node* prev = rb_prev(rb);
 		struct blstream* storage;
 		if (prev) {
@@ -397,7 +419,7 @@ struct flatten_pointer* get_pointer_node(const void* _ptr) {
 struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
 
 	assert(_sz>0);
-	struct interval_tree_node *node = interval_tree_iter_first(&imap_root, (uint64_t)_ptr, (uint64_t)_ptr+_sz-1);
+	struct interval_tree_node *node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+_sz-1);
 	struct flatten_pointer* r = 0;
 	if (node) {
 		uint64_t p = (uint64_t)_ptr;
@@ -410,7 +432,7 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
 				nn->start = p;
 				nn->last = node->start-1;
 				nn->storage = binary_stream_insert_front((void*)p,node->start-p,node->storage);
-				interval_tree_insert(nn, &imap_root);
+				interval_tree_insert(nn, &FLCTRL.imap_root);
 				if (r==0) {
 					r = make_flatten_pointer(nn,0);
 				}
@@ -431,7 +453,7 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
 			nn->start = p;
 			nn->last = (uint64_t)_ptr+_sz-1;
 			nn->storage = binary_stream_insert_back((void*)p,(uint64_t)_ptr+_sz-p,prev->storage);
-			interval_tree_insert(nn, &imap_root);
+			interval_tree_insert(nn, &FLCTRL.imap_root);
 		}
 		return r;
 	}
@@ -441,7 +463,7 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
 		node->start = (uint64_t)_ptr;
 		node->last = (uint64_t)_ptr + _sz-1;
 		struct blstream* storage;
-		struct rb_node* rb = interval_tree_insert(node, &imap_root);
+		struct rb_node* rb = interval_tree_insert(node, &FLCTRL.imap_root);
 		struct rb_node* prev = rb_prev(rb);
 		if (prev) {
 			storage = binary_stream_insert_back(_ptr,_sz,((struct interval_tree_node*)prev)->storage);
@@ -473,24 +495,96 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 void flatten_init() {
 }
 
-void flatten_save(FILE* ff) {
+size_t flatten_write(FILE* ff) {
+	size_t written = 0;
 	binary_stream_calculate_index();
     binary_stream_update_pointers();
-    struct flatten_header hdr = { binary_stream_size(), fixup_set_count(), ROOT_PTR_OFFSET(f) };
-    printf("@ Memory size(%lu)\n@ Pointer count(%lu)\n@ Root pointer offset(%lu)\n",hdr.memory_size, hdr.ptr_count, ROOT_PTR_OFFSET(f));
-    fwrite(&hdr,sizeof(struct flatten_header),1,ff);
-    fixup_set_write(ff);
-    binary_stream_write(ff);
+    DBGC(0,flatten_debug_info());
+    FLCTRL.HDR.memory_size = binary_stream_size();
+    FLCTRL.HDR.ptr_count = fixup_set_count();
+    FLCTRL.HDR.root_addr_count = root_addr_count();
+    printf("@ Memory size(%lu)\n@ Pointer count(%lu)\n@ Root address count(%lu)\n",FLCTRL.HDR.memory_size, FLCTRL.HDR.ptr_count, FLCTRL.HDR.root_addr_count);
+    size_t wr = fwrite(&FLCTRL.HDR,sizeof(struct flatten_header),1,ff);
+    written+=wr*sizeof(struct flatten_header);
+    struct root_addrnode* p = FLCTRL.rhead;
+    while(p) {
+    	struct interval_tree_node *node = PTRNODE(p->root_addr);
+		assert(node!=0);
+		unsigned long root_addr_offset = node->storage->index + (p->root_addr-node->start);
+    	printf("@ Root address offset: %lu\n",root_addr_offset);
+    	size_t wr = fwrite(&root_addr_offset,sizeof(unsigned long),1,ff);
+    	written+=wr*sizeof(unsigned long);
+    	p = p->next;
+    }
+    written+=fixup_set_write(ff);
+    written+=binary_stream_write(ff);
+    return written;
 }
 
 void flatten_debug_info() {
 	binary_stream_print();
-    interval_tree_print(&imap_root);
+    interval_tree_print(&FLCTRL.imap_root);
     fixup_set_print();
 }
 
 void flatten_fini() {
 	binary_stream_destroy();
-    interval_tree_destroy(&imap_root);
+    interval_tree_destroy(&FLCTRL.imap_root);
     fixup_set_destroy();
+    FLCTRL.rtail = FLCTRL.rhead;
+    while(FLCTRL.rtail) {
+    	struct root_addrnode* p = FLCTRL.rtail;
+    	FLCTRL.rtail = FLCTRL.rtail->next;
+    	free(p);
+    }
 }    
+
+void unflatten_init() {
+}
+
+size_t unflatten_read(FILE* f) {
+
+	TIME_MARK_START(unfl_b);
+	size_t readin = 0;
+	size_t rd = fread(&FLCTRL.HDR,sizeof(struct flatten_header),1,f);
+	readin+=rd*sizeof(struct flatten_header);
+	unsigned long i;
+	for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
+		unsigned long root_addr_offset;
+		size_t rd = fread(&root_addr_offset,1,sizeof(unsigned long),f);
+		readin+=rd*sizeof(unsigned long);
+		root_addr_append(root_addr_offset);
+	}
+	FLCTRL.mem = malloc(FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(unsigned long));
+	assert(FLCTRL.mem);
+	rd = fread(FLCTRL.mem,1,FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(unsigned long),f);
+	readin+=rd;
+	TIME_CHECK_ON(unfl_b,read_e);
+	TIME_MARK_START(fix_b);
+	fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
+	TIME_CHECK_ON(fix_b,fix_e);
+	TIME_CHECK_ON(unfl_b,fix_e);
+	return readin;
+}
+
+void unflatten_fini() {
+	free(FLCTRL.mem);
+}
+
+void* root_pointer_next() {
+	static struct root_addrnode* p = 0;
+	static int init = 0;
+	void* r = 0;
+
+	if (!init && !p) {
+		p = FLCTRL.rhead;
+		init = 1;
+	}
+
+	if (p) {
+		r = (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+p->root_addr);
+		p = p->next;
+	}
+
+	return r;
+}
