@@ -203,7 +203,7 @@ void binary_stream_update_pointers() {
     }
 }
 
-#define ADDR_KEY(p)	((unsigned long)(p)->inode + (p)->offset)
+#define ADDR_KEY(p)	((unsigned long)(p)->inode->start + (p)->offset)
 
 static struct fixup_set_node* create_fixup_set_node_element(struct interval_tree_node* node, unsigned long offset, struct flatten_pointer* ptr) {
 	struct fixup_set_node* n = calloc(1,sizeof(struct fixup_set_node));
@@ -240,10 +240,10 @@ int fixup_set_insert(struct interval_tree_node* node, unsigned long offset, stru
 		return 0;
 	}
 
-	struct fixup_set_node* inode = fixup_set_search((unsigned long)node+offset);
+	struct fixup_set_node* inode = fixup_set_search((unsigned long)(node->start)+offset);
 
 	if (inode) {
-		assert(((unsigned long)inode->ptr->node+inode->ptr->offset)==((unsigned long)ptr->node+ptr->offset));
+		assert(((unsigned long)inode->ptr->node->start+inode->ptr->offset)==((unsigned long)ptr->node->start+ptr->offset));
 		free(ptr);
 		return 0;
 	}
