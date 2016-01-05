@@ -490,6 +490,12 @@ int main(void) {
 	struct file* f = ROOT_POINTER_NEXT(struct file*);
 	struct list* l = ROOT_POINTER_NEXT(struct list*);
 	
+	/*struct list* l = ROOT_POINTER_SEQ(struct list*,1);
+	struct file* f = ROOT_POINTER_SEQ(struct file*,0);*/
+
+	/*struct file* f = ROOT_POINTER_SEQ(struct file*,0);
+	struct list* l = ROOT_POINTER_NEXT(struct list*);*/
+		
 	print_struct_file(f+0,0,1);
     print_struct_file(f+1,0,1);
     print_struct_file(f+2,0,1);

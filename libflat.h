@@ -40,6 +40,7 @@ struct FLCONTROL {
 	struct flatten_header	HDR;
 	struct root_addrnode* rhead;
 	struct root_addrnode* rtail;
+	struct root_addrnode* last_accessed_root;
 	void* mem;
 };
 
@@ -77,7 +78,7 @@ struct fixup_set_node {
   	/* Storage area and offset where the original address to be fixed is stored */
 	struct interval_tree_node* inode;
 	unsigned long offset;
-	/* Storage area and offset there the original address points to */
+	/* Storage area and offset where the original address points to */
 	struct flatten_pointer* ptr;
 };
 
@@ -94,6 +95,7 @@ unsigned long root_addr_count();
 
 void fix_unflatten_memory(struct flatten_header* hdr, void* memory);
 void* root_pointer_next();
+void* root_pointer_seq(int index);
 
 #define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
@@ -270,6 +272,7 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz);
 
 #define PTRNODE(PTRV)	(interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)(PTRV), (uint64_t)(PTRV)))
 #define ROOT_POINTER_NEXT(PTRTYPE)	((PTRTYPE)(root_pointer_next()))
+#define ROOT_POINTER_SEQ(PTRTYPE,n)	((PTRTYPE)(root_pointer_seq(n)))
 
 #define FOR_ROOT_POINTER(p,...)	do {	\
 		DBGM1(FOR_ROOT_POINTER,p);	\

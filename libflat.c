@@ -1,6 +1,6 @@
 #include "libflat.h"
 
-struct FLCONTROL FLCTRL = { .bhead = 0, .btail = 0, .fixup_set_root = RB_ROOT, .imap_root = RB_ROOT, .rhead = 0, .rtail = 0, .mem = 0 };
+struct FLCONTROL FLCTRL = { .bhead = 0, .btail = 0, .fixup_set_root = RB_ROOT, .imap_root = RB_ROOT, .rhead = 0, .rtail = 0, .mem = 0, .last_accessed_root=0 };
 
 static struct blstream* create_binary_stream_element(size_t size) {
 	struct blstream* n = calloc(1,sizeof(struct blstream));
@@ -572,19 +572,43 @@ void unflatten_fini() {
 }
 
 void* root_pointer_next() {
-	static struct root_addrnode* p = 0;
-	static int init = 0;
-	void* r = 0;
+	
+	assert(FLCTRL.rhead!=0);
 
-	if (!init && !p) {
-		p = FLCTRL.rhead;
-		init = 1;
+	if (FLCTRL.last_accessed_root==0) {
+		FLCTRL.last_accessed_root = FLCTRL.rhead;
+	}
+	else {
+		if (FLCTRL.last_accessed_root->next) {
+			FLCTRL.last_accessed_root = FLCTRL.last_accessed_root->next;
+		}
+		else {
+			return 0;
+		}
 	}
 
-	if (p) {
-		r = (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+p->root_addr);
-		p = p->next;
+	return (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
+}
+
+void* root_pointer_seq(int index) {
+
+	struct root_addrnode* sv = FLCTRL.last_accessed_root;
+
+	assert(FLCTRL.rhead!=0);
+
+
+	FLCTRL.last_accessed_root = FLCTRL.rhead;
+
+	int i=0;
+	for (i=0; i<index; ++i) {
+		if (FLCTRL.last_accessed_root->next) {
+			FLCTRL.last_accessed_root = FLCTRL.last_accessed_root->next;
+		}
+		else {
+			FLCTRL.last_accessed_root = sv;
+			return 0;
+		}
 	}
 
-	return r;
+	return (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
 }
