@@ -20,6 +20,7 @@ void flatten_fini();
 void unflatten_init();
 size_t unflatten_read(FILE* f);
 void unflatten_fini();
+void flatten_set_debug_flag(int flag);
 
 struct root_addrnode {
 	struct root_addrnode* next;
@@ -41,6 +42,7 @@ struct FLCONTROL {
 	struct root_addrnode* rhead;
 	struct root_addrnode* rtail;
 	struct root_addrnode* last_accessed_root;
+	unsigned long debug_flag;
 	void* mem;
 };
 
@@ -135,12 +137,12 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 	return count;
 }
 
-/* #define DEBUG_FLATTEN_FUNCTION */
+#define DEBUG_FLATTEN_FUNCTION
 #ifdef DEBUG_FLATTEN_FUNCTION
-#define DBGM1(name,a1)					do { printf(#name "(" #a1 ")\n"); } while(0)
-#define DBGM2(name,a1,a2)				do { printf(#name "(" #a1 "," #a2 ")\n"); } while(0)
-#define DBGM3(name,a1,a2,a3)			do { printf(#name "(" #a1 "," #a2 "," #a3 ")\n"); } while(0)
-#define DBGM4(name,a1,a2,a3,a4)			do { printf(#name "(" #a1 "," #a2 "," #a3 "," #a4 ")\n"); } while(0)
+#define DBGM1(name,a1)					do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 ")\n"); } while(0)
+#define DBGM2(name,a1,a2)				do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 ")\n"); } while(0)
+#define DBGM3(name,a1,a2,a3)			do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 "," #a3 ")\n"); } while(0)
+#define DBGM4(name,a1,a2,a3,a4)			do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 "," #a3 "," #a4 ")\n"); } while(0)
 #else
 #define DBGM1(name,a1)
 #define DBGM2(name,a1,a2)
@@ -280,8 +282,8 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz);
 			struct flatten_pointer* __fptr = make_flatten_pointer(0,(unsigned long)(p));	\
 			__VA_ARGS__;	\
 			free(__fptr);	\
-			root_addr_append( (unsigned long)(p) );	\
 		}	\
+		root_addr_append( (unsigned long)(p) );	\
 	} while(0)
 
 #define FUNCTION_DEFINE_FLATTEN_STRUCT(FLTYPE,...)	\

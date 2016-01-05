@@ -305,6 +305,10 @@ char* st[] = {
 //#define FLATTEN_TEST
 #define UNFLATTEN_TEST
 
+struct A {
+	int k[10];
+};
+
 int main(void) {
 
 //#define FLATTEN_ARRAY_TEST

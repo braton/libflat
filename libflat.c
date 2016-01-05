@@ -1,6 +1,6 @@
 #include "libflat.h"
 
-struct FLCONTROL FLCTRL = { .bhead = 0, .btail = 0, .fixup_set_root = RB_ROOT, .imap_root = RB_ROOT, .rhead = 0, .rtail = 0, .mem = 0, .last_accessed_root=0 };
+struct FLCONTROL FLCTRL = { .bhead = 0, .btail = 0, .fixup_set_root = RB_ROOT, .imap_root = RB_ROOT, .rhead = 0, .rtail = 0, .mem = 0, .last_accessed_root=0, .debug_flag=0 };
 
 static struct blstream* create_binary_stream_element(size_t size) {
 	struct blstream* n = calloc(1,sizeof(struct blstream));
@@ -508,9 +508,15 @@ size_t flatten_write(FILE* ff) {
     written+=wr*sizeof(struct flatten_header);
     struct root_addrnode* p = FLCTRL.rhead;
     while(p) {
-    	struct interval_tree_node *node = PTRNODE(p->root_addr);
-		assert(node!=0);
-		unsigned long root_addr_offset = node->storage->index + (p->root_addr-node->start);
+    	unsigned long root_addr_offset;
+    	if (p->root_addr) {
+    		struct interval_tree_node *node = PTRNODE(p->root_addr);
+			assert(node!=0);
+			root_addr_offset = node->storage->index + (p->root_addr-node->start);
+    	}
+    	else {
+    		root_addr_offset = (unsigned long)-1;
+    	}
     	printf("@ Root address offset: %lu\n",root_addr_offset);
     	size_t wr = fwrite(&root_addr_offset,sizeof(unsigned long),1,ff);
     	written+=wr*sizeof(unsigned long);
@@ -583,19 +589,21 @@ void* root_pointer_next() {
 			FLCTRL.last_accessed_root = FLCTRL.last_accessed_root->next;
 		}
 		else {
-			return 0;
+			assert(0);
 		}
 	}
 
-	return (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
+	if (FLCTRL.last_accessed_root->root_addr==(unsigned long)-1) {
+		return 0;
+	}
+	else {
+		return (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
+	}
 }
 
 void* root_pointer_seq(int index) {
 
-	struct root_addrnode* sv = FLCTRL.last_accessed_root;
-
 	assert(FLCTRL.rhead!=0);
-
 
 	FLCTRL.last_accessed_root = FLCTRL.rhead;
 
@@ -605,10 +613,18 @@ void* root_pointer_seq(int index) {
 			FLCTRL.last_accessed_root = FLCTRL.last_accessed_root->next;
 		}
 		else {
-			FLCTRL.last_accessed_root = sv;
-			return 0;
+			assert(0);
 		}
 	}
 
-	return (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
+	if (FLCTRL.last_accessed_root->root_addr==(unsigned long)-1) {
+		return 0;
+	}
+	else {
+		return (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
+	}
+}
+
+void flatten_set_debug_flag(int flag) {
+	FLCTRL.debug_flag = flag;
 }
