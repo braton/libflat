@@ -577,13 +577,13 @@ size_t unflatten_read(FILE* f) {
 }
 
 void unflatten_fini() {
-	free(FLCTRL.mem);
 	FLCTRL.rtail = FLCTRL.rhead;
     while(FLCTRL.rtail) {
     	struct root_addrnode* p = FLCTRL.rtail;
     	FLCTRL.rtail = FLCTRL.rtail->next;
     	free(p);
     }
+    free(FLCTRL.mem);
 }
 
 void* root_pointer_next() {
