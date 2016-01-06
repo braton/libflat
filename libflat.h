@@ -341,4 +341,49 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 		         (double) (tv_mark_##start_marker##_##end_marker.tv_sec - tv_mark_##start_marker.tv_sec) );	\
 	} while(0)
 
+static inline int flatmem_ptrcmp(const void* pa,const void* pb) {
+
+	unsigned long memptra = (unsigned long)(  *((void**)(FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long) + *(unsigned long*)pa))  );
+	unsigned long memptrb = (unsigned long)(  *((void**)(FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long) + *(unsigned long*)pb))  );
+
+	if ( memptra <  memptrb ) return -1;
+	else if ( memptra ==  memptrb ) return 0;
+	else return 1;
+}
+
+static inline int flatmem_kptrcmp(const void* k,const void* v) {
+
+	unsigned long memptr = (unsigned long)(  *((void**)(FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long) + *(unsigned long*)v))  );
+
+	if ( *(unsigned long*)k <  memptr ) return -1;
+	else if ( *(unsigned long*)k ==  memptr ) return 0;
+	else return 1;
+}
+
+static inline void libflat_free (void* ptr) {
+
+	unsigned long p = (unsigned long)ptr;
+	if ( bsearch(&p,FLCTRL.mem,FLCTRL.HDR.ptr_count,sizeof(unsigned long),flatmem_kptrcmp) ) {
+		/* Trying to free a part of unflatten memory. Do nothing */
+	}
+	else {
+		/* Original free. Make sure "free" is not redefined at this point */
+		free(ptr);
+	}
+}
+
+static inline void* libflat_realloc (void* ptr, size_t size) {
+	
+	unsigned long p = (unsigned long)ptr;
+	if ( bsearch(&p,FLCTRL.mem,FLCTRL.HDR.ptr_count,sizeof(unsigned long),flatmem_kptrcmp) ) {
+		/* Trying to realloc a part of unflatten memory. Allocate new storage and let the part of unflatten memory fade away */
+		void* m = malloc(size);
+		if (m) return m; else return ptr;
+	}
+	else {
+		/* Original realloc. Make sure "realloc" is not redefined at this point */
+		return realloc(ptr,size);
+	}
+}
+
 #endif /* __LIBFLAT_H__ */

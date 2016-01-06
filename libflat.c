@@ -490,6 +490,9 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 		unsigned long ptr = *((unsigned long*)(mem+fix_loc));
 		*((void**)(mem+fix_loc)) = mem + ptr;
 	}
+	/* 	Sort the fix locations by the value of pointers at these locations.
+		This will speed-up searching (by binary search) if a given pointer points to unflatten memory */
+	qsort (FLCTRL.mem, FLCTRL.HDR.ptr_count, sizeof(unsigned long), flatmem_ptrcmp);
 }
 
 void flatten_init() {
@@ -575,6 +578,12 @@ size_t unflatten_read(FILE* f) {
 
 void unflatten_fini() {
 	free(FLCTRL.mem);
+	FLCTRL.rtail = FLCTRL.rhead;
+    while(FLCTRL.rtail) {
+    	struct root_addrnode* p = FLCTRL.rtail;
+    	FLCTRL.rtail = FLCTRL.rtail->next;
+    	free(p);
+    }
 }
 
 void* root_pointer_next() {

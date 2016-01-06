@@ -302,9 +302,6 @@ char* st[] = {
     0
 };
 
-//#define FLATTEN_TEST
-#define UNFLATTEN_TEST
-
 struct A {
 	int k[10];
 };
@@ -477,11 +474,15 @@ int main(void) {
 	fclose(ff);
 
 	flatten_fini();
+	free(l1); free(l2); free(l3); free(l4); free(l5); free(l6);
 	return 0;
 
 #endif /* FLATTEN_TEST */
 
 #ifdef UNFLATTEN_TEST
+
+#define free libflat_free
+#define realloc libflat_realloc
 
 	/* Unflatten the struct file array structure */
 
@@ -493,6 +494,10 @@ int main(void) {
 
 	struct file* f = ROOT_POINTER_NEXT(struct file*);
 	struct list* l = ROOT_POINTER_NEXT(struct list*);
+
+	struct list* l1 = calloc(1,sizeof(struct list));
+    assert(l1!=0);
+    int * iarr = calloc(10,sizeof * iarr);
 	
 	/*struct list* l = ROOT_POINTER_SEQ(struct list*,1);
 	struct file* f = ROOT_POINTER_SEQ(struct file*,0);*/
@@ -514,6 +519,11 @@ int main(void) {
     print_struct_list(l->next->next->next,0,1);
     print_struct_list(l->next->next->next->next,0,1);
     print_struct_list(l->next->next->next->next->next,0,1);
+    free(l->next);
+    void* plist = realloc(l->next,100);
+    free(plist);
+    free(l1);
+    free(realloc(iarr,20 * sizeof * iarr));
 
     unflatten_fini();
 	
