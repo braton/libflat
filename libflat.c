@@ -498,7 +498,7 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 void flatten_init() {
 }
 
-size_t flatten_write(FILE* ff) {
+int flatten_write(FILE* ff) {
 	size_t written = 0;
 	binary_stream_calculate_index();
     binary_stream_update_pointers();
@@ -506,9 +506,9 @@ size_t flatten_write(FILE* ff) {
     FLCTRL.HDR.memory_size = binary_stream_size();
     FLCTRL.HDR.ptr_count = fixup_set_count();
     FLCTRL.HDR.root_addr_count = root_addr_count();
-    printf("@ Memory size(%lu)\n@ Pointer count(%lu)\n@ Root address count(%lu)\n",FLCTRL.HDR.memory_size, FLCTRL.HDR.ptr_count, FLCTRL.HDR.root_addr_count);
+    FLCTRL.HDR.magic = FLATTEN_MAGIC;
     size_t wr = fwrite(&FLCTRL.HDR,sizeof(struct flatten_header),1,ff);
-    written+=wr*sizeof(struct flatten_header);
+    if (wr!=1) return -1; written+=sizeof(struct flatten_header);
     struct root_addrnode* p = FLCTRL.rhead;
     while(p) {
     	unsigned long root_addr_offset;
@@ -520,14 +520,16 @@ size_t flatten_write(FILE* ff) {
     	else {
     		root_addr_offset = (unsigned long)-1;
     	}
-    	printf("@ Root address offset: %lu\n",root_addr_offset);
     	size_t wr = fwrite(&root_addr_offset,sizeof(unsigned long),1,ff);
-    	written+=wr*sizeof(unsigned long);
+    	if (wr!=1) return -1; else written+=wr*sizeof(unsigned long);
     	p = p->next;
     }
-    written+=fixup_set_write(ff);
-    written+=binary_stream_write(ff);
-    return written;
+    wr = fixup_set_write(ff);
+    if (wr!=FLCTRL.HDR.ptr_count*sizeof(unsigned long)) return -1; else written+=wr;
+    wr = binary_stream_write(ff);
+    if (wr!=FLCTRL.HDR.memory_size) return -1; else written+=wr;
+    printf("# Flattening done. Summary:\n  Memory size: %lu bytes\n  Linked %lu pointers\n  Written %lu bytes\n",FLCTRL.HDR.memory_size, FLCTRL.HDR.ptr_count, written);
+    return 0;
 }
 
 void flatten_debug_info() {
@@ -551,29 +553,36 @@ void flatten_fini() {
 void unflatten_init() {
 }
 
-size_t unflatten_read(FILE* f) {
+int unflatten_read(FILE* f) {
 
 	TIME_MARK_START(unfl_b);
 	size_t readin = 0;
 	size_t rd = fread(&FLCTRL.HDR,sizeof(struct flatten_header),1,f);
-	readin+=rd*sizeof(struct flatten_header);
+	if (rd!=1) return -1; else readin+=sizeof(struct flatten_header);
+	if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
+		fprintf(stderr,"Invalid magic while reading flattened image\n");
+		return -1;
+	}
 	unsigned long i;
 	for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
 		unsigned long root_addr_offset;
-		size_t rd = fread(&root_addr_offset,1,sizeof(unsigned long),f);
-		readin+=rd*sizeof(unsigned long);
+		size_t rd = fread(&root_addr_offset,sizeof(unsigned long),1,f);
+		if (rd!=1) return -1; else readin+=sizeof(unsigned long);
 		root_addr_append(root_addr_offset);
 	}
-	FLCTRL.mem = malloc(FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(unsigned long));
+	size_t memsz = FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(unsigned long);
+	FLCTRL.mem = malloc(memsz);
 	assert(FLCTRL.mem);
-	rd = fread(FLCTRL.mem,1,FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(unsigned long),f);
-	readin+=rd;
-	TIME_CHECK_ON(unfl_b,read_e);
+	rd = fread(FLCTRL.mem,1,memsz,f);
+	if (rd!=memsz) return -1; else readin+=rd;
+	printf("# Unflattening done. Summary:\n");
+	TIME_CHECK_FMT(unfl_b,read_e,"  Image read time: %fs\n");
 	TIME_MARK_START(fix_b);
 	fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
-	TIME_CHECK_ON(fix_b,fix_e);
-	TIME_CHECK_ON(unfl_b,fix_e);
-	return readin;
+	TIME_CHECK_FMT(fix_b,fix_e,"  Fixing memory time: %fs\n");
+	TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
+	printf("  Total bytes read: %lu\n",readin);
+	return 0;
 }
 
 void unflatten_fini() {

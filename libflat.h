@@ -14,11 +14,11 @@
 /* Main flattening structures and functions */
 
 void flatten_init();
-size_t flatten_write(FILE* f);
+int flatten_write(FILE* f);
 void flatten_debug_info();
 void flatten_fini();
 void unflatten_init();
-size_t unflatten_read(FILE* f);
+int unflatten_read(FILE* f);
 void unflatten_fini();
 void flatten_set_debug_flag(int flag);
 
@@ -27,10 +27,13 @@ struct root_addrnode {
 	unsigned long root_addr;
 };
 
+#define FLATTEN_MAGIC 0x464c415454454e00
+
 struct flatten_header {
 	unsigned long memory_size;
 	unsigned long ptr_count;
 	unsigned long root_addr_count;
+	unsigned long magic;
 };
 
 struct FLCONTROL {
@@ -337,6 +340,13 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 		struct timeval  tv_mark_##start_marker##_##end_marker;	\
 		gettimeofday(&tv_mark_##start_marker##_##end_marker, 0);	\
 		printf("@Elapsed ("#start_marker" -> "#end_marker"): (%f)[s]\n",	\
+		(double) (tv_mark_##start_marker##_##end_marker.tv_usec - tv_mark_##start_marker.tv_usec) / 1000000 +	\
+		         (double) (tv_mark_##start_marker##_##end_marker.tv_sec - tv_mark_##start_marker.tv_sec) );	\
+	} while(0)
+#define TIME_CHECK_FMT(start_marker,end_marker,fmt)	do {	\
+		struct timeval  tv_mark_##start_marker##_##end_marker;	\
+		gettimeofday(&tv_mark_##start_marker##_##end_marker, 0);	\
+		printf(fmt,	\
 		(double) (tv_mark_##start_marker##_##end_marker.tv_usec - tv_mark_##start_marker.tv_usec) / 1000000 +	\
 		         (double) (tv_mark_##start_marker##_##end_marker.tv_sec - tv_mark_##start_marker.tv_sec) );	\
 	} while(0)

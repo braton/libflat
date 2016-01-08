@@ -469,8 +469,8 @@ int main(void) {
 	
 	FILE* ff = fopen("flatten.dat","w");
 	assert(ff!=0);
-	size_t wr = flatten_write(ff);
-	printf("%lu bytes written\n",wr);
+	int status = flatten_write(ff);
+	assert(status==0);
 	fclose(ff);
 
 	flatten_fini();
@@ -489,7 +489,8 @@ int main(void) {
 	unflatten_init();
 
 	FILE* ff = fopen("flatten.dat","r");
-	unflatten_read(ff);
+	int status = unflatten_read(ff);
+	assert(status==0);
 	fclose(ff);
 
 	struct file* f = ROOT_POINTER_NEXT(struct file*);
@@ -524,6 +525,7 @@ int main(void) {
     free(plist);
     free(l1);
     free(realloc(iarr,20 * sizeof * iarr));
+    free(0);
 
     unflatten_fini();
 	
