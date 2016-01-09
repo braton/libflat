@@ -373,7 +373,7 @@ static inline int flatmem_kptrcmp(const void* k,const void* v) {
 static inline void libflat_free (void* ptr) {
 
 	unsigned long p = (unsigned long)ptr;
-	if ( bsearch(&p,FLCTRL.mem,FLCTRL.HDR.ptr_count,sizeof(unsigned long),flatmem_kptrcmp) ) {
+	if ( (FLCTRL.mem) && (bsearch(&p,FLCTRL.mem,FLCTRL.HDR.ptr_count,sizeof(unsigned long),flatmem_kptrcmp)) ) {
 		/* Trying to free a part of unflatten memory. Do nothing */
 	}
 	else {
@@ -383,9 +383,9 @@ static inline void libflat_free (void* ptr) {
 }
 
 static inline void* libflat_realloc (void* ptr, size_t size) {
-	
+
 	unsigned long p = (unsigned long)ptr;
-	if ( bsearch(&p,FLCTRL.mem,FLCTRL.HDR.ptr_count,sizeof(unsigned long),flatmem_kptrcmp) ) {
+	if ( (FLCTRL.mem) && (bsearch(&p,FLCTRL.mem,FLCTRL.HDR.ptr_count,sizeof(unsigned long),flatmem_kptrcmp)) ) {
 		/* Trying to realloc a part of unflatten memory. Allocate new storage and let the part of unflatten memory fade away */
 		void* m = malloc(size);
 		if (m) return m; else return ptr;
