@@ -497,7 +497,6 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 		/* 	Store all fixed pointer values in a hash table (a set of 64-bit integers)
 			This will speed-up checking whether a given pointer points to a part of unflatten memory */
 		hash_add(integer_set,&empty,value);
-		printf("@ hash added: (%016lx)\n",value);
 	}
 }
 
