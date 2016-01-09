@@ -2,6 +2,9 @@
 
 struct FLCONTROL FLCTRL = { .bhead = 0, .btail = 0, .fixup_set_root = RB_ROOT, .imap_root = RB_ROOT, .rhead = 0, .rtail = 0, .mem = 0, .last_accessed_root=0, .debug_flag=0 };
 
+DEFINE_HASHTABLE(integer_set, 21);
+struct hlist_node empty;
+
 static struct blstream* create_binary_stream_element(size_t size) {
 	struct blstream* n = calloc(1,sizeof(struct blstream));
 	assert(n!=0);
@@ -488,11 +491,14 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 	for (i=0; i<hdr->ptr_count; ++i) {
 		unsigned long fix_loc = *((unsigned long*)memory+i);
 		unsigned long ptr = *((unsigned long*)(mem+fix_loc));
+		unsigned long value = (unsigned long)(mem + ptr);
+		/* Make the fix */
 		*((void**)(mem+fix_loc)) = mem + ptr;
+		/* 	Store all fixed pointer values in a hash table (a set of 64-bit integers)
+			This will speed-up checking whether a given pointer points to a part of unflatten memory */
+		hash_add(integer_set,&empty,value);
+		printf("@ hash added: (%016lx)\n",value);
 	}
-	/* 	Sort the fix locations by the value of pointers at these locations.
-		This will speed-up searching (by binary search) if a given pointer points to unflatten memory */
-	qsort (FLCTRL.mem, FLCTRL.HDR.ptr_count, sizeof(unsigned long), flatmem_ptrcmp);
 }
 
 void flatten_init() {
@@ -551,6 +557,7 @@ void flatten_fini() {
 }    
 
 void unflatten_init() {
+	hash_init(integer_set);
 }
 
 int unflatten_read(FILE* f) {

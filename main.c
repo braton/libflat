@@ -1,5 +1,7 @@
 #include "main.h"
 #include <math.h>
+#include <stdlib.h>
+#include <time.h>
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(command,
 		AGGREGATE_FLATTEN_STRING(cmd);
@@ -307,6 +309,35 @@ struct A {
 };
 
 int main(void) {
+
+//#define HASH_TABLE_TEST
+#ifdef HASH_TABLE_TEST
+
+#define LONG_ARR_SIZE	1000000
+
+	srand (time(0));
+	static unsigned long long_arr[LONG_ARR_SIZE];
+	int i;
+	struct hlist_node empty;
+	hash_init(integer_set);
+	for (i=0; i<LONG_ARR_SIZE; ++i) {
+		long_arr[i] = ((unsigned long)rand() << 32) | (unsigned long)rand();
+		hash_add(integer_set,&empty,long_arr[i]);
+	}
+	printf("%d\n",hash_has_key(integer_set,long_arr[0]));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+	
+	return 0;
+#endif
 
 //#define FLATTEN_ARRAY_TEST
 #ifdef FLATTEN_ARRAY_TEST
