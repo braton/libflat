@@ -10,7 +10,6 @@
 #include <assert.h> 
 #include <sys/time.h>
 #include "interval_tree.h"
-#include "hashtable.h"
 
 /* Main flattening structures and functions */
 
@@ -102,9 +101,6 @@ unsigned long root_addr_count();
 void fix_unflatten_memory(struct flatten_header* hdr, void* memory);
 void* root_pointer_next();
 void* root_pointer_seq(int index);
-
-/* Underlying hashtable structure for the integer set */
-DECLARE_HASHTABLE(integer_set, 21);	/* Allocate 2M entries */
 
 #define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
@@ -355,9 +351,19 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 		         (double) (tv_mark_##start_marker##_##end_marker.tv_sec - tv_mark_##start_marker.tv_sec) );	\
 	} while(0)
 
+static inline int flatmem_kptrcmp(const void* k,const void* v) {
+
+	unsigned long memptr = (unsigned long)(  *((void**)(FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long) + *(unsigned long*)v))  );
+
+	if ( *(unsigned long*)k <  memptr ) return -1;
+	else if ( *(unsigned long*)k ==  memptr ) return 0;
+	else return 1;
+}
+
 static inline void libflat_free (void* ptr) {
 
-	if ( (FLCTRL.mem) && (hash_has_key(integer_set,(unsigned long)ptr)) ) {
+	unsigned long p = (unsigned long)ptr;
+	if ( (FLCTRL.mem) && (bsearch(&p,FLCTRL.mem,FLCTRL.HDR.ptr_count,sizeof(unsigned long),flatmem_kptrcmp)) ) {
 		/* Trying to free a part of unflatten memory. Do nothing */
 	}
 	else {
@@ -368,7 +374,8 @@ static inline void libflat_free (void* ptr) {
 
 static inline void* libflat_realloc (void* ptr, size_t size) {
 
-	if ( (FLCTRL.mem) && (hash_has_key(integer_set,(unsigned long)ptr)) ) {
+	unsigned long p = (unsigned long)ptr;
+	if ( (FLCTRL.mem) && (bsearch(&p,FLCTRL.mem,FLCTRL.HDR.ptr_count,sizeof(unsigned long),flatmem_kptrcmp)) ) {
 		/* Trying to realloc a part of unflatten memory. Allocate new storage and let the part of unflatten memory fade away */
 		void* m = malloc(size);
 		if (m) return m; else return ptr;
