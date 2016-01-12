@@ -284,38 +284,15 @@ void fixup_set_print() {
     printf("]\n");
 }
 
-static inline int fixptrcmp(const void* pa,const void* pb) {
-
-	unsigned long newptra = *((unsigned long*)pa+1);
-	unsigned long newptrb = *((unsigned long*)pb+1);
-
-	if ( newptra <  newptrb ) return -1;
-	else if ( newptra ==  newptrb ) return 0;
-	else return 1;
-}
-
 size_t fixup_set_write(FILE* f) {
 	size_t written=0;
 	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
-	unsigned long cnt = fixup_set_count();
-	unsigned long* m = malloc(2*cnt*sizeof(unsigned long));
-	assert (m!=0);
-	int i=0;
 	while(p) {
     	struct fixup_set_node* node = (struct fixup_set_node*)p;
     	unsigned long origptr = node->inode->storage->index+node->offset;
-    	void* newptr = &((unsigned char*)node->inode->storage->data)[node->offset];
-    	*(m+i++) = origptr;
-    	*(m+i++) = *(unsigned long*)newptr;
+		size_t wr = fwrite(&origptr,sizeof(unsigned long),1,f);
+		written+=wr*sizeof(unsigned long);
     	p = rb_next(p);
-    }
-    /* 	Sort all the fix locations by the values of pointers they point to
-		This will speed-up checking whether a given pointer points to a part of unflatten memory */
-    qsort(m,cnt,2*sizeof(unsigned long),fixptrcmp);
-    for (i=0; i<cnt; ++i) {
-    	size_t wr = fwrite(m+2*i,sizeof(unsigned long),1,f);
-    	assert(wr==1);
-    	written+=sizeof(unsigned long);
     }
     return written;
 }
