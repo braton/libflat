@@ -136,7 +136,7 @@ static void print_struct_file(struct file* f, int indent, int recurse) {
 	printf("%s\tvalue: (%s)\n",chr_indent,f->value);
 	printf("%s\tp: (%d)\n",chr_indent,f->p);
 	printf("%s\tstp:\n",chr_indent);
-	int i;
+	unsigned i;
 	size_t sz = ptrarrmemlen((const void * const*)f->stp);
 	for (i=0; i<sz; ++i) {
 		printf("%s\t\t(%s)\n",chr_indent,f->stp[i]);

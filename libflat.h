@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <stdint.h>
-#include <assert.h> 
+#include <assert.h>
 #include <sys/time.h>
 #include "interval_tree.h"
 

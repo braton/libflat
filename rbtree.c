@@ -373,9 +373,9 @@ void __rb_erase_color(struct rb_node *parent, struct rb_root *root,
  * out of the rb_insert_color() and rb_erase() function definitions.
  */
 
-static inline void dummy_propagate(struct rb_node *node, struct rb_node *stop) {}
-static inline void dummy_copy(struct rb_node *old, struct rb_node *new) {}
-static inline void dummy_rotate(struct rb_node *old, struct rb_node *new) {}
+static inline void dummy_propagate(__attribute__((unused)) struct rb_node *node, __attribute__((unused)) struct rb_node *stop) {}
+static inline void dummy_copy(__attribute__((unused)) struct rb_node *old, __attribute__((unused)) struct rb_node *new) {}
+static inline void dummy_rotate(__attribute__((unused)) struct rb_node *old, __attribute__((unused)) struct rb_node *new) {}
 
 static const struct rb_augment_callbacks dummy_callbacks = {
 	dummy_propagate, dummy_copy, dummy_rotate
