@@ -8,8 +8,13 @@
 #include <memory.h>
 #include <stdint.h>
 #include <assert.h>
-#include <sys/time.h>
 #include "interval_tree.h"
+#ifdef __linux__
+#include <sys/time.h>
+#else
+#ifdef _WIN32
+#endif
+#endif
 
 /* Main flattening structures and functions */
 

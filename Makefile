@@ -22,7 +22,7 @@ CPPFLAGS += -iquote$(PWD)
 CFLAGS += -O2 -ggdb3
 
 # Automatically generate dependency files
-CPPFLAGS += -MD
+CFLAGS += -MD
 
 LIB_SRC  := libflat.c rbtree.c interval_tree.c
 TEST_SRC := main.c
@@ -77,4 +77,4 @@ clean:
 .PHONY : all clean static shared test
 .SILENT : 
 	
--include $(DEP)
+-include $(LIB_DEP) $(DEP) $(TEST_DEP)
