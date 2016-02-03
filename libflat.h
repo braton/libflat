@@ -107,9 +107,13 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory);
 void* root_pointer_next();
 void* root_pointer_seq(int index);
 
+#ifdef __linux__
 #define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
+#else
+#define container_of(ptr, type, member) (type *)( (char *)(ptr) - offsetof(type,member) )
+#endif
 
 #define DBGC(b,...)		do { if (b!=0)	__VA_ARGS__; } while(0)
 

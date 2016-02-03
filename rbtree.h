@@ -29,11 +29,19 @@
 #ifndef	_LINUX_RBTREE_H
 #define	_LINUX_RBTREE_H
 
-struct rb_node {
+#ifdef __linux__
+#define _LINUX_ALIGNMENT(n)	__attribute__((aligned(sizeof(long))))
+#define _WIN32_ALIGNMENT(n)
+#else
+#define _WIN32_ALIGNMENT(n)	__declspec(align(n))
+#define _LINUX_ALIGNMENT(n)
+#endif
+
+struct _WIN32_ALIGNMENT(sizeof(long)) rb_node {
 	unsigned long  __rb_parent_color;
 	struct rb_node *rb_right;
 	struct rb_node *rb_left;
-} __attribute__((aligned(sizeof(long))));
+} _LINUX_ALIGNMENT(sizeof(long));
     /* The alignment might seem pointless, but allegedly CRIS needs it */
 
 struct rb_root {
