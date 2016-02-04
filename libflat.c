@@ -196,7 +196,7 @@ void binary_stream_update_pointers() {
 	int count=0;
 	while(p) {
     	struct fixup_set_node* node = (struct fixup_set_node*)p;
-    	void* newptr = (void*)node->ptr->node->storage->index+node->ptr->offset;
+    	void* newptr = (unsigned char*)node->ptr->node->storage->index+node->ptr->offset;
     	memcpy(&((unsigned char*)node->inode->storage->data)[node->offset],&newptr,sizeof(void*));
     	p = rb_next(p);
     	count++;
@@ -484,12 +484,12 @@ struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz) {
 
 void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 	size_t i;
-	void* mem = memory+hdr->ptr_count*sizeof(unsigned long);
+	void* mem = (unsigned char*)memory+hdr->ptr_count*sizeof(unsigned long);
 	for (i=0; i<hdr->ptr_count; ++i) {
 		unsigned long fix_loc = *((unsigned long*)memory+i);
-		unsigned long ptr = *((unsigned long*)(mem+fix_loc));
+		unsigned long ptr = *((unsigned long*)((unsigned char*)mem+fix_loc));
 		/* Make the fix */
-		*((void**)(mem+fix_loc)) = mem + ptr;
+		*((void**)((unsigned char*)mem+fix_loc)) = (unsigned char*)mem + ptr;
 	}
 }
 
@@ -613,7 +613,7 @@ void* root_pointer_next() {
 		return 0;
 	}
 	else {
-		return (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
+		return ((unsigned char*)FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
 	}
 }
 
@@ -637,7 +637,7 @@ void* root_pointer_seq(int index) {
 		return 0;
 	}
 	else {
-		return (FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
+		return ((unsigned char*)FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long)+FLCTRL.last_accessed_root->root_addr);
 	}
 }
 

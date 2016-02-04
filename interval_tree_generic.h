@@ -46,14 +46,14 @@ static inline ITTYPE ITPREFIX ## _compute_subtree_last(ITSTRUCT *node)	      \
 {									      \
 	ITTYPE max = ITLAST(node), subtree_last;			      \
 	if (node->ITRB.rb_left) {					      \
-		subtree_last = rb_entry(node->ITRB.rb_left,		      \
-					ITSTRUCT, ITRB)->ITSUBTREE;	      \
+		subtree_last = (rb_entry(node->ITRB.rb_left,		      \
+					ITSTRUCT, ITRB))->ITSUBTREE;	      \
 		if (max < subtree_last)					      \
 			max = subtree_last;				      \
 	}								      \
 	if (node->ITRB.rb_right) {					      \
-		subtree_last = rb_entry(node->ITRB.rb_right,		      \
-					ITSTRUCT, ITRB)->ITSUBTREE;	      \
+		subtree_last = (rb_entry(node->ITRB.rb_right,		      \
+					ITSTRUCT, ITRB))->ITSUBTREE;	      \
 		if (max < subtree_last)					      \
 			max = subtree_last;				      \
 	}								      \

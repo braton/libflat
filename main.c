@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "main.h"
 #include <math.h>
 #include <stdlib.h>
@@ -68,7 +69,7 @@ static void print_struct_filearr(struct filearr* farr, int indent, int recurse);
 static void print_struct_list(struct list* l, int indent, int recurse);
 
 static void print_struct_list(struct list* l, int indent, int recurse) {
-	char chr_indent[indent+1];
+	char* chr_indent = ALLOCA(indent + 1);
 	memset(chr_indent,'\t',indent);
 	chr_indent[indent] = 0;
 	printf("%sstruct list {\n",chr_indent);
@@ -90,7 +91,7 @@ static void print_struct_list(struct list* l, int indent, int recurse) {
 }
 
 static void print_struct_command(struct command* c, int indent) {
-	char chr_indent[indent+1];
+	char* chr_indent = ALLOCA(indent + 1);
 	memset(chr_indent,'\t',indent);
 	chr_indent[indent] = 0;
 	printf("%sstruct command {\n",chr_indent);
@@ -128,7 +129,7 @@ static void print_struct_command(struct command* c, int indent) {
 }
 
 static void print_struct_file(struct file* f, int indent, int recurse) {
-	char chr_indent[indent+1];
+	char* chr_indent = ALLOCA(indent + 1);
 	memset(chr_indent,'\t',indent);
 	chr_indent[indent] = 0;
 	printf("%sstruct file {\n",chr_indent);
@@ -205,7 +206,7 @@ static void print_struct_file(struct file* f, int indent, int recurse) {
 }
 
 static void print_int_array(int * ai, int indent, int len) {
-	char chr_indent[indent+1];
+	char* chr_indent = ALLOCA(indent + 1);
 	memset(chr_indent,'\t',indent);
 	chr_indent[indent] = 0;
 	if (!ai) {
@@ -221,7 +222,7 @@ static void print_int_array(int * ai, int indent, int len) {
 }
 
 static void print_struct_filearr(struct filearr* farr, int indent, int recurse) {
-	char chr_indent[indent+1];
+	char* chr_indent = ALLOCA(indent + 1);
 	memset(chr_indent,'\t',indent);
 	chr_indent[indent] = 0;
 	printf("%sstruct filearr {\n",chr_indent);
@@ -244,7 +245,7 @@ static void print_struct_filearr(struct filearr* farr, int indent, int recurse) 
 }
 
 static void print_struct_dep(struct dep* d, int indent, int recurse) {
-	char chr_indent[indent+1];
+	char* chr_indent = ALLOCA(indent + 1);
 	memset(chr_indent,'\t',indent);
 	chr_indent[indent] = 0;
 	printf("%sstruct dep {\n",chr_indent);

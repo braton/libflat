@@ -6,6 +6,16 @@
 
 #include "libflat.h"
 
+#ifdef __linux__
+#include <alloca.h>
+#define ALLOCA(x)	alloca(x)
+#else
+#ifdef _WIN32
+#include <malloc.h>
+#define ALLOCA(x)	_malloca(x)
+#endif
+#endif
+
 struct command {
     char* cmd;
     char** values;
@@ -15,6 +25,7 @@ struct command {
 
 FUNCTION_DECLARE_FLATTEN_STRUCT(command);
 
+#pragma pack()
 struct dep {
     struct file** f;
     int n;
@@ -22,7 +33,7 @@ struct dep {
     int* arr;
     int* pi[4];
     int pi_size[4];
-} __attribute__((packed));
+};
 
 FUNCTION_DECLARE_FLATTEN_STRUCT(dep);
 

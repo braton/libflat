@@ -8,12 +8,63 @@
 #include <memory.h>
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 #include "interval_tree.h"
 #ifdef __linux__
 #include <sys/time.h>
 #else
 #ifdef _WIN32
+#include <Windows.h>
 #endif
+#endif
+
+#ifdef _WIN32
+/*
+* gettimeofday.c
+*	  Win32 gettimeofday() replacement
+*
+* Copyright (c) 2003 SRA, Inc.
+* Copyright (c) 2003 SKC, Inc.
+*
+* Permission to use, copy, modify, and distribute this software and
+* its documentation for any purpose, without fee, and without a
+* written agreement is hereby granted, provided that the above
+* copyright notice and this paragraph and the following two
+* paragraphs appear in all copies.
+*
+* IN NO EVENT SHALL THE AUTHOR BE LIABLE TO ANY PARTY FOR DIRECT,
+* INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
+* LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
+* DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED
+* OF THE POSSIBILITY OF SUCH DAMAGE.
+*
+* THE AUTHOR SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT
+* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+* A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS ON AN "AS
+* IS" BASIS, AND THE AUTHOR HAS NO OBLIGATIONS TO PROVIDE MAINTENANCE,
+* SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+*/
+
+/* FILETIME of Jan 1 1970 00:00:00, the PostgreSQL epoch */
+static const unsigned __int64 epoch = (__int64)116444736000000000LL;
+
+static inline int
+gettimeofday(struct timeval * tp, struct timezone * tzp)
+{
+	FILETIME	file_time;
+	SYSTEMTIME  system_time;
+	ULARGE_INTEGER ularge;
+
+	GetSystemTime(&system_time);
+	SystemTimeToFileTime(&system_time, &file_time);
+	ularge.LowPart = file_time.dwLowDateTime;
+	ularge.HighPart = file_time.dwHighDateTime;
+
+	tp->tv_sec = (long)((ularge.QuadPart - epoch) / 10000000L);
+	tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
+
+	return 0;
+}
 #endif
 
 /* Main flattening structures and functions */
@@ -112,7 +163,9 @@ void* root_pointer_seq(int index);
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 #else
+#ifdef _WIN32
 #define container_of(ptr, type, member) (type *)( (char *)(ptr) - offsetof(type,member) )
+#endif
 #endif
 
 #define DBGC(b,...)		do { if (b!=0)	__VA_ARGS__; } while(0)
@@ -362,8 +415,8 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 
 static inline void libflat_free (void* ptr) {
 
-	void* mem = FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long);
-	if ( (FLCTRL.mem) && (ptr>=mem) && (ptr<=mem+FLCTRL.HDR.memory_size) ) {
+	void* mem = (unsigned char*)FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long);
+	if ( (FLCTRL.mem) && (ptr>=mem) && ((unsigned char*)ptr<= (unsigned char*)mem+FLCTRL.HDR.memory_size) ) {
 		/* Trying to free a part of unflatten memory. Do nothing */
 	}
 	else {
@@ -374,8 +427,8 @@ static inline void libflat_free (void* ptr) {
 
 static inline void* libflat_realloc (void* ptr, size_t size) {
 
-	void* mem = FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long);
-	if ( (FLCTRL.mem) && (ptr>=mem) && (ptr<=mem+FLCTRL.HDR.memory_size) ) {
+	void* mem = (unsigned char*)FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(unsigned long);
+	if ( (FLCTRL.mem) && (ptr>=mem) && ((unsigned char*)ptr<= (unsigned char*)mem+FLCTRL.HDR.memory_size) ) {
 		/* Trying to realloc a part of unflatten memory. Allocate new storage and let the part of unflatten memory fade away */
 		void* m = malloc(size);
 		if (m) return m; else return ptr;
