@@ -33,7 +33,7 @@ all: $(OUT)
 static: $(OUTLIB)
 shared: $(OUTDYN)
 test: $(OUTTEST)
-	@python flattest.py
+	@python flattest.py flattest
 
 $(OUTLIB): $(OBJ) $(LIBS)
 	@echo "  [AR]   $@"

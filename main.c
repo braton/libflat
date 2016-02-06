@@ -1,4 +1,8 @@
+#ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
+#define _USE_MATH_DEFINES
+#endif
+
 #include "main.h"
 #include <math.h>
 #include <stdlib.h>
@@ -316,7 +320,7 @@ void usage() {
 
 void dump(FILE* flatten_file) {
 	
-	float fp_value = M_PI;
+	float fp_value = (float)M_PI;
     float* pfp = &fp_value;
     float** ppfp = &pfp;
     float*** pppfp = &ppfp;
@@ -348,7 +352,7 @@ void dump(FILE* flatten_file) {
     l5->next = l6;
     l6->next = l1;
 
-	struct file f[8] = {};
+	struct file f[8] = {0};
 	struct filearr farr = {f};
     struct command c[8] = {
     	{"command0",st+20-0,1,ppppfp},

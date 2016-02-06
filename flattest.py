@@ -19,7 +19,7 @@ if __name__ == "__main__":
   sys.stdout.write("Testing flattenning structures...")
   sys.stdout.flush()
 
-  p = Process( "%s dump %s"%(os.path.join(os.getcwd(),"flattest"),fn) )
+  p = Process( "%s dump %s"%(os.path.join(os.getcwd(),sys.argv[1]),fn) )
   if p.process.returncode!=0:
     print "\nFailed to create flatten file: %d"%(p.process.returncode)
     print p.out,p.err
@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
   flatten_out = "\n".join([u for u in p.out.split("\n") if u.strip()!=""][:-4])
   
-  p = Process( "%s read %s"%(os.path.join(os.getcwd(),"flattest"),fn) )
+  p = Process( "%s read %s"%(os.path.join(os.getcwd(),sys.argv[1]),fn) )
   if p.process.returncode!=0:
     print "\nFailed to read flatten file: %d"%(p.process.returncode)
     print p.out,p.err
