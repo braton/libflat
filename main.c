@@ -309,90 +309,13 @@ struct A {
 	int k[10];
 };
 
-int main(void) {
+void usage() {
+	printf("Usage:\n  flattest dump <FILENAME> : dump internal test structures to file <FILENAME> and print test structure representation to stdout\n\
+  flattest read <FILENAME> : read internal test structures from file <FILENAME> and print test structure representation to stdout\n");
+}
 
-//#define HASH_TABLE_TEST
-#ifdef HASH_TABLE_TEST
-
-#define LONG_ARR_SIZE	1000000
-
-	srand (time(0));
-	static unsigned long long_arr[LONG_ARR_SIZE];
-	int i;
-	struct hlist_node empty;
-	hash_init(integer_set);
-	for (i=0; i<LONG_ARR_SIZE; ++i) {
-		long_arr[i] = ((unsigned long)rand() << 32) | (unsigned long)rand();
-		hash_add(integer_set,&empty,long_arr[i]);
-	}
-	printf("%d\n",hash_has_key(integer_set,long_arr[0]));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
-	printf("%d\n",hash_has_key(integer_set,((unsigned long)rand() << 32) | (unsigned long)rand()));
+void dump(FILE* flatten_file) {
 	
-	return 0;
-#endif
-
-//#define FLATTEN_ARRAY_TEST
-#ifdef FLATTEN_ARRAY_TEST
-	char s[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#$*@0123456789";
-	int ia[10] = {0,1,2,3,4,5,6,7,8,9};
-	FLATTEN_TYPE_ARRAY(char,s+10,5);	// KLMNO
-	FLATTEN_TYPE_ARRAY(char,s+20,3);	// UVW
-	FLATTEN_TYPE_ARRAY(char,s+30,6);	// 012345
-	FLATTEN_STRING(s); // full string
-	FLATTEN_TYPE_ARRAY(int,ia,10);	// 0..9
-	binary_stream_print();
-    interval_tree_print(&imap_root);
-    binary_stream_destroy();
-    interval_tree_destroy(&imap_root);
-	return 0;
-#endif
-
-//#define NODE_TEST
-#ifdef NODE_TEST
-	struct interval_tree_node* n1 = calloc(1,sizeof(struct interval_tree_node));
-	n1->start=30;
-	n1->last=100;
-	struct interval_tree_node* n2 = calloc(1,sizeof(struct interval_tree_node));
-	n2->start=130;
-	n2->last=150;
-	struct interval_tree_node* n3 = calloc(1,sizeof(struct interval_tree_node));
-	n3->start=190;
-	n3->last=210;
-	struct interval_tree_node* n4 = calloc(1,sizeof(struct interval_tree_node));
-	n4->start=220;
-	n4->last=230;
-	struct interval_tree_node* n5 = calloc(1,sizeof(struct interval_tree_node));
-	n5->start=360;
-	n5->last=420;
-	struct interval_tree_node* n6 = calloc(1,sizeof(struct interval_tree_node));
-	n6->start=500;
-	n6->last=560;
-	interval_tree_insert(n1, &imap_root);
-	interval_tree_insert(n6, &imap_root);
-	interval_tree_insert(n3, &imap_root);
-	interval_tree_insert(n2, &imap_root);
-	interval_tree_insert(n5, &imap_root);
-	interval_tree_insert(n4, &imap_root);
-
-	struct interval_tree_node *node;
-	for (node = interval_tree_iter_first(&imap_root, 0, 10000); node;
-	     node = interval_tree_iter_next(node, 0, 10000)) {
-		printf("@ (%lu):(%lu)\n",node->start,node->last);
-	}
-	return 0;
-#endif
-
-#ifdef FLATTEN_TEST
-
 	float fp_value = M_PI;
     float* pfp = &fp_value;
     float** ppfp = &pfp;
@@ -499,31 +422,24 @@ int main(void) {
 		FLATTEN_STRUCT(list,l1);
 	);
 	
-	FILE* ff = fopen("flatten.dat","w");
-	assert(ff!=0);
-	int status = flatten_write(ff);
+	int status = flatten_write(flatten_file);
 	assert(status==0);
-	fclose(ff);
 
 	flatten_fini();
 	free(l1); free(l2); free(l3); free(l4); free(l5); free(l6);
-	return 0;
+}
 
-#endif /* FLATTEN_TEST */
-
-#ifdef UNFLATTEN_TEST
-
-#define free libflat_free
-#define realloc libflat_realloc
+void read(FILE* flatten_file) {
+	
+	#define free libflat_free
+	#define realloc libflat_realloc
 
 	/* Unflatten the struct file array structure */
 
 	unflatten_init();
 
-	FILE* ff = fopen("flatten.dat","r");
-	int status = unflatten_read(ff);
+	int status = unflatten_read(flatten_file);
 	assert(status==0);
-	fclose(ff);
 
 	struct file* f = ROOT_POINTER_NEXT(struct file*);
 	struct list* l = ROOT_POINTER_NEXT(struct list*);
@@ -560,8 +476,53 @@ int main(void) {
     free(0);
 
     unflatten_fini();
-	
-	return 0;
-#endif
 
+    #undef free
+    #undef realloc
+}
+
+int main(int argc, char* argv[]) {
+
+if (argc<=1) {
+	usage();
+	return 1;
+}
+
+if (!strcmp(argv[1],"dump")) {
+	
+	if (argv[2]!=0) {
+		FILE* f = fopen(argv[2],"w");
+		if (f==0) {
+			printf("Cannot open file: (%s): %s\n",argv[2],strerror(errno));
+			return errno;
+		}
+		dump(f);
+		fclose(f);
+	}
+	else {
+		printf("Missing filename - aborted\n");
+		return 1;
+	}
+}
+else if (!strcmp(argv[1],"read")) {
+	if (argv[2]!=0) {
+		FILE* f = fopen(argv[2],"r");
+		if (f==0) {
+			printf("Cannot open file: (%s): %s\n",argv[2],strerror(errno));
+			return errno;
+		}
+		read(f);
+		fclose(f);
+	}
+	else {
+		printf("Missing filename - aborted\n");
+		return 1;
+	}
+}
+else {
+	printf("Invalid command : %s\n",argv[1]);
+	return 1;
+}
+
+return 0;
 }

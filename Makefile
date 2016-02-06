@@ -2,27 +2,14 @@ CC = gcc
 AR = ar
 LIBS = 
 INCDIRS = 
-CFLAGS = -Wno-address
+CFLAGS = -Wno-address -Wno-missing-field-initializers
 
-# Include dirs
-CPPFLAGS += $(foreach dir,$(INCDIRS),-I$(dir))
-
-# Warnings
 CFLAGS += -Wall -Wextra 
+CFLAGS += -O2 -ggdb3
+CFLAGS += -MD
 
 LIB_CFLAGS += -fPIC
 EXE_LDFLAGS += -static
-
-# Remove unused symbols
-CFLAGS += -fdata-sections -ffunction-sections
-
-CPPFLAGS += -iquote$(PWD)
-
-# Generate debug symbols
-CFLAGS += -O2 -ggdb3
-
-# Automatically generate dependency files
-CFLAGS += -MD
 
 LIB_SRC  := libflat.c rbtree.c interval_tree.c
 TEST_SRC := main.c
@@ -46,6 +33,7 @@ all: $(OUT)
 static: $(OUTLIB)
 shared: $(OUTDYN)
 test: $(OUTTEST)
+	@python flattest.py
 
 $(OUTLIB): $(OBJ) $(LIBS)
 	@echo "  [AR]   $@"
