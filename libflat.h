@@ -18,6 +18,30 @@
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+  The following macros are available to describe how to flatten types:
+
+  	FLATTEN_STRUCT(type,pointer)
+	AGGREGATE_FLATTEN_STRUCT(type,field)
+	FLATTEN_STRUCT_ARRAY(type,pointer,size)
+	AGGREGATE_FLATTEN_STRUCT_ARRAY(type,field,size)
+	FLATTEN_STRING(pointer)
+	AGGREGATE_FLATTEN_STRING(field)
+	FLATTEN_TYPE(type,pointer)
+	AGGREGATE_FLATTEN_TYPE(type,field)
+	FLATTEN_TYPE_ARRAY(type,pointer,size)
+	AGGREGATE_FLATTEN_TYPE_ARRAY(type,field,size)
+	FOR_POINTER(pointer_type,value_to_use,pointer,code)
+	FOREACH_POINTER(pointer_type,value_to_use,pointer,size,code)
+	ATTR(field)
+	FOR_ROOT_POINTER(root_pointer,code)
+	ROOT_POINTER_NEXT(pointer_type)
+	ROOT_POINTER_SEQ(pointer_type,pointer_number)
+	INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY(type)
+	FUNCTION_DEFINE_FLATTEN_STRUCT(type,code)
+	FUNCTION_DECLARE_FLATTEN_STRUCT(type)
+
+  See README and docs for more details.
 */
 
 #include <stdio.h>
@@ -36,6 +60,8 @@ void flatten_fini();
 void unflatten_init();
 int unflatten_read(FILE* f);
 void unflatten_fini();
+
+/* Implementation */
 
 #ifdef __linux__
 #define _ALIGNAS(n)	__attribute__((aligned(n)))
