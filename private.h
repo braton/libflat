@@ -128,7 +128,7 @@ size_t fixup_set_write(FILE* f);
 /* Root address list */
 struct root_addrnode {
 	struct root_addrnode* next;
-	size_t root_addr;
+	uintptr_t root_addr;
 };
 size_t root_addr_count();
 

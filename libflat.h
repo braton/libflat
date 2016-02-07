@@ -325,7 +325,7 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 		}	\
 	} while(0)
 
-#define PTRNODE(PTRV)	(interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)(PTRV), (uint64_t)(PTRV)))
+#define PTRNODE(PTRV)	(interval_tree_iter_first(&FLCTRL.imap_root, (uintptr_t)(PTRV), (uintptr_t)(PTRV)))
 #define ROOT_POINTER_NEXT(PTRTYPE)	((PTRTYPE)(root_pointer_next()))
 #define ROOT_POINTER_SEQ(PTRTYPE,n)	((PTRTYPE)(root_pointer_seq(n)))
 
@@ -336,7 +336,7 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 			__VA_ARGS__;	\
 			free(__fptr);	\
 		}	\
-		root_addr_append( (unsigned long)(p) );	\
+		root_addr_append( (uintptr_t)(p) );	\
 	} while(0)
 
 #define FLATTEN_MEMORY_START	((unsigned char*)FLCTRL.mem+FLCTRL.HDR.ptr_count*sizeof(size_t))
