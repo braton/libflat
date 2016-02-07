@@ -97,13 +97,13 @@ rbstatic const struct rb_augment_callbacks rbname = {			\
 
 static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
 {
-	rb->__rb_parent_color = rb_color(rb) | (unsigned long)p;
+	rb->__rb_parent_color = rb_color(rb) | (uintptr_t)p;
 }
 
 static inline void rb_set_parent_color(struct rb_node *rb,
 				       struct rb_node *p, int color)
 {
-	rb->__rb_parent_color = (unsigned long)p | color;
+	rb->__rb_parent_color = (uintptr_t)p | color;
 }
 
 static inline void
@@ -208,7 +208,7 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root,
 			rb_set_parent_color(child2, parent, RB_BLACK);
 			rebalance = 0;
 		} else {
-			unsigned long pc2 = successor->__rb_parent_color;
+			uintptr_t pc2 = successor->__rb_parent_color;
 			successor->__rb_parent_color = pc;
 			rebalance = __rb_is_black(pc2) ? parent : 0;
 		}

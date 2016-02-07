@@ -65,20 +65,14 @@ void unflatten_fini();
 
 #ifdef __linux__
 #define _ALIGNAS(n)	__attribute__((aligned(n)))
-#define RB_NODE_ALIGN	(sizeof(uintptr_t))
-#else
-#ifdef _WIN32
+#define RB_NODE_ALIGN	(sizeof(long))
+#elif defined _WIN32
 #define _ALIGNAS(n)	__declspec(align(n))
-#ifdef _M_IX86
 #define RB_NODE_ALIGN	4
-#elif defined _M_X64
-#define RB_NODE_ALIGN	8
 #endif
-#endif	/* _WIN32 */
-#endif /* __linux__ */
 
 struct _ALIGNAS(RB_NODE_ALIGN) rb_node {
-	unsigned long  __rb_parent_color;
+	uintptr_t  __rb_parent_color;
 	struct rb_node *rb_right;
 	struct rb_node *rb_left;
 };
