@@ -333,7 +333,7 @@ void fixup_set_destroy() {
 	};
 }
 
-void root_addr_append(size_t root_addr) {
+void root_addr_append(uintptr_t root_addr) {
     struct root_addrnode* v = calloc(1,sizeof(struct root_addrnode));
     assert(v!=0);
     v->root_addr = root_addr;
