@@ -246,7 +246,7 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 
 #define INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY(FLTYPE)	\
 static inline struct flatten_pointer* flatten_struct_##FLTYPE##_array(const struct FLTYPE* _ptr, size_t n) {	\
-	int _i;	\
+    size_t _i;	\
 	void* _fp_first=0;	\
 	for (_i=0; _i<n; ++_i) {	\
 		void* _fp = (void*)flatten_struct_##FLTYPE(_ptr+_i);	\
@@ -332,7 +332,7 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 #define FOR_ROOT_POINTER(p,...)	do {	\
 		DBGM1(FOR_ROOT_POINTER,p);	\
 		if (p) {	\
-			struct flatten_pointer* __fptr = make_flatten_pointer(0,(unsigned long)(p));	\
+			struct flatten_pointer* __fptr = make_flatten_pointer(0,0);	\
 			__VA_ARGS__;	\
 			free(__fptr);	\
 		}	\
