@@ -51,6 +51,7 @@
 #include <memory.h>
 #include <stddef.h>
 #include <errno.h>
+#include <string.h>
 
 /* Main interface functions */
 
