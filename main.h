@@ -1,9 +1,6 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
-//#define FLATTEN_TEST
-#define UNFLATTEN_TEST
-
 #include "libflat.h"
 
 #ifdef __linux__

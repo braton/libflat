@@ -352,7 +352,7 @@ void dump(FILE* flatten_file) {
     l5->next = l6;
     l6->next = l1;
 
-	struct file f[8] = {0};
+	struct file f[8] = {{0}};
 	struct filearr farr = {f};
     struct command c[8] = {
     	{"command0",st+20-0,1,ppppfp},

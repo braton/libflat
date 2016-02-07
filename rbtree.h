@@ -29,27 +29,7 @@
 #ifndef	_LINUX_RBTREE_H
 #define	_LINUX_RBTREE_H
 
-#ifdef __linux__
-#define _ALIGNAS(n)	__attribute__((aligned(n)))
-#define RB_NODE_ALIGN	(sizeof(long))
-#else
-#ifdef _WIN32
-#define _ALIGNAS(n)	__declspec(align(n))
-#define RB_NODE_ALIGN	32
-#endif
-#endif
-
-struct _ALIGNAS(RB_NODE_ALIGN) rb_node {
-	unsigned long  __rb_parent_color;
-	struct rb_node *rb_right;
-	struct rb_node *rb_left;
-};
-    /* The alignment might seem pointless, but allegedly CRIS needs it */
-
-struct rb_root {
-	struct rb_node *rb_node;
-};
-
+#include "libflat.h"
 
 #define rb_parent(r)   ((struct rb_node *)((r)->__rb_parent_color & ~3))
 
