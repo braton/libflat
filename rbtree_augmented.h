@@ -128,7 +128,7 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root,
 {
 	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
 	struct rb_node *parent, *rebalance;
-	unsigned long pc;
+	uintptr_t pc;
 
 	if (!tmp) {
 		/*

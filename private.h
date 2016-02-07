@@ -119,7 +119,7 @@ struct fixup_set_node {
 	struct flatten_pointer* ptr;
 };
 
-struct fixup_set_node* fixup_set_search(unsigned long v);
+struct fixup_set_node* fixup_set_search(uintptr_t v);
 void fixup_set_print();
 size_t fixup_set_count();
 void fixup_set_destroy();
