@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Libflat by braton</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Libflat</h1>
+      <h2 class="project-tagline">Library for fast serialization of C/C++ structures</h2>
+      <a href="https://github.com/braton/libflat" class="btn">View on GitHub</a>
+      <a href="https://github.com/braton/libflat/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/braton/libflat/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h2>
+<a id="overview" class="anchor" href="#overview" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Overview</h2>
+
+<p>Libflat is a library for fast serialization of C/C++ structures. Its main goal is speed (and of course correctness). Most of the time when you serialize your data the speed doesn't matter (in contrast to other factors like simplicity, good coverage etc.). But there are some cases when the speed is crucial, i.e. you're working with some big data sets and you need to serialize/deserialize them often (you might have some H/W device that produces a mass od data and you want to read in and process this data on another machine). <br></p>
+
+<p>In standard approach for serialization you pick up or design some protocol, choose low-level medium (like JSON) and write the logic to save your structures. On the other side of the mirror you read in the packets, figure out what they represent and combine them to recreate your beloved data. This is fine. Everybody do that. This works well. Unfortunately sometimes this works slow (rarely though and most of the times you can get away with it). Libflat is about to make this process as fast as possible by all cost. If you need this sort of speed standard you might want to check this out.<br></p>
+
+<p>Good example for using Libflat is Android build system (still based on Makefile build system as of Feb. 2016). Android build system is monolithic which makes it extremely parallelizable. The main obstacle though is that you need to read all the makefiles up front (and there is lots of them). Trying it with hot caches gives the following (tests for android-6.0.0_r5)<br></p>
+
+<pre><code>$ source build/envsetup.sh
+$ lunch aosp_arm64-eng
+$ time make
+============================================
+PLATFORM_VERSION_CODENAME=REL
+PLATFORM_VERSION=6.0
+TARGET_PRODUCT=aosp_arm64
+TARGET_BUILD_VARIANT=eng
+TARGET_BUILD_TYPE=release
+TARGET_BUILD_APPS=
+TARGET_ARCH=arm64
+TARGET_ARCH_VARIANT=armv8-a
+TARGET_CPU_VARIANT=generic
+TARGET_2ND_ARCH=arm
+TARGET_2ND_ARCH_VARIANT=armv7-a-neon
+TARGET_2ND_CPU_VARIANT=cortex-a15
+HOST_ARCH=x86_64
+HOST_OS=linux
+HOST_OS_EXTRA=Linux-3.13.0-58-generic-x86_64-with-Ubuntu-14.04-trusty
+HOST_BUILD_TYPE=release
+BUILD_ID=MRA58K
+OUT_DIR=out
+============================================
+including ./abi/cpp/Android.mk ...
+including ./art/Android.mk ...
+including ./bionic/Android.mk ...
+...
+including ./system/security/softkeymaster/Android.mk ...
+including ./system/vold/Android.mk ...
+including ./tools/external/fat32lib/Android.mk ...
+</code></pre>
+
+<p>Summary:</p>
+
+<pre><code>  real  0m41.977s
+  user  0m32.590s
+  sys   0m9.654s
+</code></pre>
+
+<p>Not so bad, especially when you have a lots of RAM (so the only job that needs to be done is to parse all the Makefiles in memory using one thread). But what if we can omit the parsing phase at all and read in the whole memory content ready for going (or almost ready)?</p>
+
+<h3>
+<a id="how-libflat-works" class="anchor" href="#how-libflat-works" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>How Libflat works</h3>
+
+<p>Libflat works by making copy of the process memory for indicated variables and structures. It doesn't matter whether original storage is automatic, static or allocated. The result is always stored on the heap (and kept on the heap after deserialization).<br>
+Memory image is flat, i.e. whole copied memory image has continuous addresses. Pointers to original memory locations are properly resolved in the flattened image. Having whole memory serialized into one continuous memory block makes deserialization very fast (it is just a matter of reading entire block from disk to memory). Pointer resolution phase is needed after image is read in but this has linear complexity with number of pointers.<br></p>
+
+<p>Simplest possible case of serialization can be made for automatic int variable as follows:</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* out = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>w<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(out);
+    <span class="pl-c1">flatten_init</span>();
+
+    <span class="pl-k">int</span> automatic = 0xDABBAD00;
+
+    <span class="pl-c1">FOR_ROOT_POINTER</span>(&amp;automatic,
+        <span class="pl-c1">FLATTEN_TYPE</span>(<span class="pl-k">int</span>,&amp;automatic);
+    );
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">flatten_write</span>(out)==<span class="pl-c1">0</span>);
+
+    <span class="pl-c1">flatten_fini</span>();
+    <span class="pl-c1">fclose</span>(out);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Flattening done. Summary:
+  Memory size: 4 bytes
+  Linked 0 pointers
+  Written 44 bytes
+</code></pre>
+
+<p>On the other side reading the stored value can be now done by:</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* in = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(in);
+    <span class="pl-c1">unflatten_init</span>();
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">unflatten_read</span>(in)==<span class="pl-c1">0</span>);
+
+    <span class="pl-k">int</span>* now_allocated = <span class="pl-c1">ROOT_POINTER_NEXT</span>(<span class="pl-k">int</span>*);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-c1">%08X</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,*now_allocated);
+
+    <span class="pl-c1">unflatten_fini</span>();
+    <span class="pl-c1">fclose</span>(in);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Unflattening done. Summary:
+  Image read time: 0.000036s
+  Fixing memory time: 0.000000s
+  Total time: 0.000063s
+  Total bytes read: 44
+  DABBAD00
+</code></pre>
+
+<p>Similar procedure can be done with arrays and strings as in the below examples:</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdint.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* out = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>w<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(out);
+    <span class="pl-c1">flatten_init</span>();
+
+    <span class="pl-k">int</span> i;
+    <span class="pl-k">const</span> <span class="pl-k">char</span>* s = <span class="pl-s"><span class="pl-pds">"</span>Fibonacci would not calculate this as fast<span class="pl-pds">"</span></span>;
+    <span class="pl-k">long</span> fib[<span class="pl-c1">40</span>] = {<span class="pl-c1">0</span>,<span class="pl-c1">1</span>};
+    <span class="pl-k">for</span> (i=<span class="pl-c1">2</span>; i&lt;<span class="pl-c1">40</span>; ++i) fib[i] = fib[i-<span class="pl-c1">1</span>] + fib[i-<span class="pl-c1">2</span>];
+
+    <span class="pl-c1">FOR_ROOT_POINTER</span>(fib,
+        <span class="pl-c1">FLATTEN_TYPE_ARRAY</span>(<span class="pl-k">long</span>,fib,<span class="pl-c1">40</span>);
+    );
+
+    <span class="pl-c1">FOR_ROOT_POINTER</span>(s,
+        <span class="pl-c1">FLATTEN_STRING</span>(s);
+    );
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">flatten_write</span>(out)==<span class="pl-c1">0</span>);
+
+    <span class="pl-c1">flatten_fini</span>();
+    <span class="pl-c1">fclose</span>(out);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Flattening done. Summary:
+  Memory size: 363 bytes
+  Linked 0 pointers
+  Written 411 bytes
+</code></pre>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdint.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* in = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(in);
+    <span class="pl-c1">unflatten_init</span>();
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">unflatten_read</span>(in)==<span class="pl-c1">0</span>);
+
+    <span class="pl-k">long</span>* fib = <span class="pl-c1">ROOT_POINTER_SEQ</span>(<span class="pl-k">long</span>*,<span class="pl-c1">0</span>);
+    <span class="pl-k">const</span> <span class="pl-k">char</span>* s = <span class="pl-c1">ROOT_POINTER_SEQ</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,<span class="pl-c1">1</span>);
+
+    <span class="pl-k">int</span> i;
+    <span class="pl-k">for</span> (i=<span class="pl-c1">0</span>; i&lt;<span class="pl-c1">40</span>; ++i) <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-c1">%ld</span> <span class="pl-pds">"</span></span>,fib[i]); <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-c1">%s</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,s);
+
+    <span class="pl-c1">unflatten_fini</span>();
+    <span class="pl-c1">fclose</span>(in);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Unflattening done. Summary:
+  Image read time: 0.000055s
+  Fixing memory time: 0.000000s
+  Total time: 0.000100s
+  Total bytes read: 411
+0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597
+2584 4181 6765 10946 17711 28657 46368 75025 121393 196418
+317811 514229 832040 1346269 2178309 3524578 5702887 9227465
+14930352 24157817 39088169 63245986 
+Fibonacci would not calculate this as fast
+</code></pre>
+
+<p>This brings the notion of the so called root pointer. When you read the contents of memory you will have a block of data to your disposal. But how to access it? You need some pointer to any part of this memory (assuming you can interpret the memory from this point and link to other parts). This is what the root pointer is for. It is just a pointer to some part of unflatten memory. This has its own storage and is not part of the memory image (but of course it is part of the image file).<br></p>
+
+<p>Let's back to our first example. </p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-k">int</span> automatic = 0xDABBAD00;
+
+<span class="pl-en">FOR_ROOT_POINTER</span>(&amp;automatic,
+    <span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">int</span>,&amp;automatic);
+);</pre></div>
+
+<p>We simply told our flattener engine that we want to access the memory through the address of the "automatic" variable (i.e. we will hold it reference). Check out that flattened memory size is 4 c-bytes (which happens to be the sizeof(int) on my example making machine). But it doesn't need to be this way. We can modify the first example slightly and specify the root pointer address through some other pointer variable:</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-k">int</span> automatic = 0xDABBAD00;
+<span class="pl-k">int</span> * pi = &amp;automatic;
+
+<span class="pl-en">FOR_ROOT_POINTER</span>(pi,
+    <span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">int</span>,&amp;automatic);
+);</pre></div>
+
+<p>After image read we just assign this value to our own defined variable as below:</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-k">int</span>* now_allocated = ROOT_POINTER_NEXT(<span class="pl-k">int</span>*);</pre></div>
+
+<p>You might have several root pointers to several parts of unflatten memory. To access them you simply call <code>ROOT_POINTER_NEXT</code> with proper type sequentially to receive one root pointer after another (you will get them in the order you did issue <code>FOR_ROOT_POINTER</code> macro in the first place). You can also retrieve root pointers as below:</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-k">const</span> <span class="pl-k">char</span>* s = ROOT_POINTER_SEQ(<span class="pl-k">const</span> <span class="pl-k">char</span>*,<span class="pl-c1">1</span>);</pre></div>
+
+<p>This will read the second (with index 1) root pointer stored while creating memory image.<br></p>
+
+<p>As you might have noticed in order to flatten some type you will need a pointer to it. But what about pointers (or pointers to pointers etc.)? There is no difference as long as you have a pointer to it (or pointer to pointer to it). Huh?</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* out = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>w<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(out);
+    <span class="pl-c1">flatten_init</span>();
+
+    <span class="pl-k">double</span> magic_number = <span class="pl-c1">3.14159265359</span>;
+    <span class="pl-k">double</span>* pointer_to_it = &amp;magic_number;
+    <span class="pl-k">double</span>** pointer_to_pointer_to_it = &amp;pointer_to_it;
+    <span class="pl-k">double</span>*** ehhh = &amp;pointer_to_pointer_to_it;
+
+    <span class="pl-c1">FOR_ROOT_POINTER</span>(ehhh,
+        <span class="pl-c1">FLATTEN_TYPE</span>(<span class="pl-k">double</span>**,&amp;pointer_to_pointer_to_it);
+        <span class="pl-c1">FOR_POINTER</span>(<span class="pl-k">double</span>**,p,&amp;pointer_to_pointer_to_it,
+            <span class="pl-c1">FLATTEN_TYPE</span>(<span class="pl-k">double</span>*,p);
+            <span class="pl-c1">FOR_POINTER</span>(<span class="pl-k">double</span>*,q,p,
+                <span class="pl-c1">FLATTEN_TYPE</span>(<span class="pl-k">double</span>,q);
+            );
+        );
+    );
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">flatten_write</span>(out)==<span class="pl-c1">0</span>);
+
+    <span class="pl-c1">flatten_fini</span>();
+    <span class="pl-c1">fclose</span>(out);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Flattening done. Summary:
+  Memory size: 24 bytes
+  Linked 2 pointers
+  Written 80 bytes
+</code></pre>
+
+<p>You have just written three values into memory (two pointers and one double value). How so?<br></p>
+
+<p>The line:</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">double</span>**,&amp;pointer_to_pointer_to_it);</pre></div>
+
+<p>writes the value pointed to by <code>&amp;pointer_to_pointer_to_it</code> which is of type double** (this is the actual value stored in the <code>pointer_to_pointer_to_it</code> pointer). We did exactly the same in the first example:</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">int</span>,&amp;automatic);</pre></div>
+
+<p>We wrote the value pointed to by <code>&amp;automatic</code> which was of type int.<br></p>
+
+<p>Next line:</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-en">FOR_POINTER</span>(<span class="pl-k">double</span>**,p,&amp;pointer_to_pointer_to_it,...);</pre></div>
+
+<p>takes the actual value pointed to by <code>&amp;pointer_to_pointer_to_it</code> and stores it in newly created variable <code>p</code> of appropriate type (double**). This variable must be pointer hence the macro name. New variable <code>p</code> (you can actually give it any accessible name) can be used in the block of code that follows ("..." macro arguments).<br></p>
+
+<p>The following code we does the same trick, i.e. writes the value pointed by <code>p</code> (of type double*):</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">double</span>*,p);</pre></div>
+
+<p>Finally we create another variable <code>q</code> that acquires the value pointed by <code>p</code> (which finally points to the magic double value) and writes the double number to the memory image:</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-en">FOR_POINTER</span>(<span class="pl-k">double</span>*,q,p,
+    <span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">double</span>,q);
+);</pre></div>
+
+<p>Checking the stored value confirms our words:</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdint.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* in = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(in);
+    <span class="pl-c1">unflatten_init</span>();
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">unflatten_read</span>(in)==<span class="pl-c1">0</span>);
+
+    <span class="pl-k">double</span>*** ehhh = <span class="pl-c1">ROOT_POINTER_SEQ</span>(<span class="pl-k">double</span>***,<span class="pl-c1">0</span>);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>The magic answer to the ultimate question of life?: <span class="pl-c1">%f</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,***ehhh);
+
+    <span class="pl-c1">unflatten_fini</span>();
+    <span class="pl-c1">fclose</span>(in);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Unflattening done. Summary:
+  Image read time: 0.000058s
+  Fixing memory time: 0.000001s
+  Total time: 0.000105s
+  Total bytes read: 80
+The magic answer to the ultimate question of life?: 3.141593
+</code></pre>
+
+<p>In the write output you can now see the line that says:
+<code>Linked 2 pointers</code>
+The memory image contained two pointers as we just explained. But after reading them in in the second process (which could actually happened on different computer on diffrenent continent) the pointer values would not probably have any proper meaning in the context of new process address space. That's why we need to fix them.<br></p>
+
+<p>Consider the following block of code:</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* out = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>w<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(out);
+    <span class="pl-c1">flatten_init</span>();
+
+    <span class="pl-k">static</span> <span class="pl-k">char</span> carr[] = <span class="pl-s"><span class="pl-pds">"</span>You don't need to be great to start, but you need to start to be great<span class="pl-pds">"</span></span>;
+
+    <span class="pl-k">const</span> <span class="pl-k">char</span>* start = carr;
+    <span class="pl-k">const</span> <span class="pl-k">char</span>* middle = carr+<span class="pl-c1">41</span>;
+
+    <span class="pl-c1">FOR_ROOT_POINTER</span>(start,
+        <span class="pl-c1">FLATTEN_TYPE</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,&amp;start);
+        <span class="pl-c1">FOR_POINTER</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,s,&amp;start,
+            <span class="pl-c1">FLATTEN_STRING</span>(s);
+        );
+    );
+
+    <span class="pl-c1">FOR_ROOT_POINTER</span>(middle,
+        <span class="pl-c1">FLATTEN_TYPE</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,&amp;middle);
+        <span class="pl-c1">FOR_POINTER</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,s,&amp;middle,
+            <span class="pl-c1">FLATTEN_STRING</span>(s);
+        );
+    );
+
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>&amp;carr[0]: <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,&amp;carr[<span class="pl-c1">0</span>]);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>&amp;start: <span class="pl-c1">%p</span> -&gt; <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,&amp;start,start);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>&amp;middle: <span class="pl-c1">%p</span> -&gt; <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,&amp;middle,middle);
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">flatten_write</span>(out)==<span class="pl-c1">0</span>);
+
+    <span class="pl-c1">flatten_fini</span>();
+    <span class="pl-c1">fclose</span>(out);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<p>And the result of running it:</p>
+
+<pre><code>  &amp;carr[0]: 0x6020c0
+  &amp;start: 0x7fff9da3a8c0 -&gt; 0x6020c0
+  &amp;middle: 0x7fff9da3a8c8 -&gt; 0x6020e9
+    # Flattening done. Summary:
+    Memory size: 87 bytes
+    Linked 2 pointers
+    Written 151 bytes
+</code></pre>
+
+<p>The original memory looks as follows:</p>
+
+<pre><code>Somewhere in the static memory area:
+0x6020c0: [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0]
+                                 ^
+                                 0x6020e9
+Somewhere on the stack:
+0x7fff9da3a8c0: [0x6020c0|0x6020e9]
+</code></pre>
+
+<p>Libflat will arrange memory image in ascending order of original addresses:</p>
+
+<pre><code>[Y|o|u|...|g|r|e|a|t|0|0x6020c0|0x6020e9]
+</code></pre>
+
+<p>and replace original pointer values with its position independent counterparts (independent from the starting address of the memory image in the process address space):</p>
+
+<pre><code>[Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x000000|0x000029]
+ ^                     ^
+ 0x000000              0x000029
+</code></pre>
+
+<p>It also needs to store two additional values, i.e. at which offset in the flattened memory area actual pointers appears (as we need to find them later):</p>
+
+<pre><code>[Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x000000|0x000029] [0x47,0x4f]
+                                             ^        ^
+                                             0x47     0x4f
+</code></pre>
+
+<p>Finally it also stores two root pointers (start and middle pointer values) as the offsets in the flattened memory image for later retrieval:</p>
+
+<pre><code>[Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x000000|0x000029] [0x47,0x4f] [0x47,0x4f]
+                     ^    ^
+                     start offset
+                         ^
+                     middle offset
+</code></pre>
+
+<p>In this example we have only two pointers and both of them are root pointers therefore stored values are duplicated. In real life scenarios we will probably have much more standard pointers and very few root pointers (as all must be manually setup by programmer).<br>
+During unflattening stage (as in the below example) several things happen.</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdint.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* in = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(in);
+    <span class="pl-c1">unflatten_init</span>();
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">unflatten_read</span>(in)==<span class="pl-c1">0</span>);
+
+    <span class="pl-k">const</span> <span class="pl-k">char</span>* start = <span class="pl-c1">ROOT_POINTER_SEQ</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,<span class="pl-c1">0</span>);
+    <span class="pl-k">const</span> <span class="pl-k">char</span>* middle = <span class="pl-c1">ROOT_POINTER_SEQ</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,<span class="pl-c1">1</span>);
+
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>&amp;start: <span class="pl-c1">%p</span> -&gt; <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,&amp;start,start);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>&amp;middle: <span class="pl-c1">%p</span> -&gt; <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,&amp;middle,middle);
+    <span class="pl-k">const</span> <span class="pl-k">void</span>* ptr1 = start+<span class="pl-c1">strlen</span>(start)+<span class="pl-c1">1</span>;
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>*(<span class="pl-c1">%p</span>) =&gt; <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,ptr1,*(<span class="pl-k">void</span>**)ptr1);
+    <span class="pl-k">const</span> <span class="pl-k">void</span>* ptr2 = start+<span class="pl-c1">strlen</span>(start)+<span class="pl-c1">1</span>+<span class="pl-k">sizeof</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>*(<span class="pl-c1">%p</span>) =&gt; <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,ptr2,*(<span class="pl-k">void</span>**)ptr2);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-c1">%s</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,start);
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>Remember: <span class="pl-c1">%s</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,middle);
+
+    <span class="pl-c1">unflatten_fini</span>();
+    <span class="pl-c1">fclose</span>(in);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Unflattening done. Summary:
+  Image read time: 0.000037s
+  Fixing memory time: 0.000001s
+  Total time: 0.000068s
+  Total bytes read: 151
+&amp;start: 0x7ffe7454eae0 -&gt; 0x8de2a0
+&amp;middle: 0x7ffe7454eae8 -&gt; 0x8de2c9
+*(0x8de2e7) =&gt; 0x8de2a0
+*(0x8de2ef) =&gt; 0x8de2c9
+You don't need to be great to start, but you need to start to be great
+Remember: you need to start to be great
+</code></pre>
+
+<p>New memory area is created in the allocated storage area (the heap) and memory image is read in:</p>
+
+<pre><code>0x8de2a0: [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x000000|0x000029] [0x47,0x4f] [0x47,0x4f]
+                                 ^
+                                 0x8de2c9
+</code></pre>
+
+<p>Now we read two pointer offsets (0x47 and 0x4f) and fix two pointers at these offsets by adding the initial address of the allocated memory area to the position independent pointer value:</p>
+
+<pre><code>0x8de2a0: [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x8de2a0|0x8de2c9] [0x47,0x4f] [0x47,0x4f]
+                                 ^                     ^        ^         ^ pointer offset array
+                                 0x8de2c9              0x47     0x4f                   ^
+                                                       ^        ^                      root pointer offset array
+                                                       0x8de2e7 0x8de2ef
+</code></pre>
+
+<p>Now the first pointer points at the beginning of the string and second points in the middle. This process is called linking and this is what the line "Linked 2 pointers" was talking about.<br>
+Finally we read two root pointers at offset location 0x47 and 0x4f which happens to be the same values as the only two pointers, create their storage and set the translated values:</p>
+
+<pre><code>&amp;start: 0x7ffe7454eae0 -&gt; 0x8de2a0
+&amp;middle: 0x7ffe7454eae8 -&gt; 0x8de2c9
+</code></pre>
+
+<p>To finally confirm the example we will move start pointer (and the second pointer) by the length of the string and read the value stored at the resulting location:</p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-k">const</span> <span class="pl-k">void</span>* ptr1 = start+strlen(start)+<span class="pl-c1">1</span>;
+<span class="pl-en">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>*(<span class="pl-c1">%p</span>) =&gt; <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,ptr1,*(<span class="pl-k">void</span>**)ptr1);
+<span class="pl-k">const</span> <span class="pl-k">void</span>* ptr2 = start+strlen(start)+<span class="pl-c1">1</span>+<span class="pl-k">sizeof</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*);
+<span class="pl-en">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>*(<span class="pl-c1">%p</span>) =&gt; <span class="pl-c1">%p</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,ptr2,*(<span class="pl-k">void</span>**)ptr2);</pre></div>
+
+<pre><code>*(0x8de2e7) =&gt; 0x8de2a0
+*(0x8de2ef) =&gt; 0x8de2c9
+</code></pre>
+
+<p>There is actually more you can do with pointers. For instance you can manage arrays of pointers in similar fashion:</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* out = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>w<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(out);
+    <span class="pl-c1">flatten_init</span>();
+
+    <span class="pl-k">const</span> <span class="pl-k">char</span>* argv[] = {
+            <span class="pl-s"><span class="pl-pds">"</span>Program name<span class="pl-pds">"</span></span>,
+            <span class="pl-s"><span class="pl-pds">"</span>Argument 0<span class="pl-pds">"</span></span>,
+            <span class="pl-s"><span class="pl-pds">"</span>Argument 1<span class="pl-pds">"</span></span>,
+            <span class="pl-s"><span class="pl-pds">"</span>Argument 2<span class="pl-pds">"</span></span>,
+            <span class="pl-s"><span class="pl-pds">"</span>Argument 3<span class="pl-pds">"</span></span>,
+            <span class="pl-c1">0</span>
+    };
+
+    <span class="pl-c1">FOR_ROOT_POINTER</span>(argv,
+        <span class="pl-c1">FOREACH_POINTER</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,arg,argv,<span class="pl-c1">ptrarrmemlen</span>((<span class="pl-k">const</span> <span class="pl-k">void</span> * <span class="pl-k">const</span>*)argv),
+            <span class="pl-c1">FLATTEN_TYPE</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*,arg);
+            <span class="pl-c1">FLATTEN_STRING</span>(arg);
+        );
+    );
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">flatten_write</span>(out)==<span class="pl-c1">0</span>);
+
+    <span class="pl-c1">flatten_fini</span>();
+    <span class="pl-c1">fclose</span>(out);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Flattening done. Summary:
+  Memory size: 105 bytes
+  Linked 5 pointers
+  Written 185 bytes
+</code></pre>
+
+<p>Here, for each pointer in the array <code>argv</code> we create temporary variable <code>arg</code> of type <code>const char*</code> which we can use in the subsequent block of code. We must specify the size of the array. We might know it in advance or we can compute it in real time. In case of arrays terminated with pointer 0 (NULL pointer) there is function <code>ptrarrmemlen</code> available for this purpose. It simply iterates through entire pointer array and counts the pointers until it reaches the pointer 0 (and counts it as well). Similar function is used internally by the <code>FLATTEN_STRING</code> macro, i.e. <code>strmemlen</code> function which returns the length of string including NULL terminating 0 value.<br></p>
+
+<p>In the code body we first flatten the pointer itself and then we flatten the string pointed to by it.</p>
+
+<div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdint.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>libflat.h<span class="pl-pds">"</span></span>
+
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">void</span>) {
+
+    <span class="pl-c1">FILE</span>* in = <span class="pl-c1">fopen</span>(<span class="pl-s"><span class="pl-pds">"</span>/tmp/memory.img<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>r<span class="pl-pds">"</span></span>);
+    <span class="pl-c1">assert</span>(in);
+    <span class="pl-c1">unflatten_init</span>();
+
+    <span class="pl-c1">assert</span>(<span class="pl-c1">unflatten_read</span>(in)==<span class="pl-c1">0</span>);
+
+    <span class="pl-k">const</span> <span class="pl-k">char</span>** argv = <span class="pl-c1">ROOT_POINTER_NEXT</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>**);
+    <span class="pl-k">while</span>(*argv) {
+        <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span><span class="pl-c1">%s</span><span class="pl-cce">\n</span><span class="pl-pds">"</span></span>,*argv);
+        argv++;
+    }
+
+    <span class="pl-c1">unflatten_fini</span>();
+    <span class="pl-c1">fclose</span>(in);
+
+    <span class="pl-k">return</span> <span class="pl-c1">0</span>;
+}</pre></div>
+
+<pre><code># Unflattening done. Summary:
+  Image read time: 0.000057s
+  Fixing memory time: 0.000001s
+  Total time: 0.000104s
+  Total bytes read: 185
+Program name
+Argument 0
+Argument 1
+Argument 2
+Argument 3
+</code></pre>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/braton/libflat">Libflat</a> is maintained by <a href="https://github.com/braton">braton</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+            <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-73729732-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>
