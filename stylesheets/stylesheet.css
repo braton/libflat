@@ -8,10 +8,10 @@ body {
   font-size: 16px;
   line-height: 1.5;
   color: #bbbbbb;
-  background: #1e1f1f; }
+  background: #292a2a; }
 
 a {
-  color: #FF4F2F;
+  color: #C76E00;
   text-decoration: none; }
   a:hover {
     text-decoration: underline; }
@@ -62,23 +62,23 @@ a {
 
 @media screen and (min-width: 64em) {
   .page-header {
-    padding: 1rem 1rem; } }
+    padding: 0.8rem 0.8rem; } }
 
 @media screen and (min-width: 42em) and (max-width: 64em) {
   .page-header {
-    padding: 3rem 4rem; } }
+    padding: 0.5rem 0.5rem; } }
 
 @media screen and (max-width: 42em) {
   .page-header {
-    padding: 2rem 1rem; } }
+    padding: 1rem 1rem; } }
 
 .project-name {
-  margin-top: 0;
+  margin-top: 0.1rem;
   margin-bottom: 0.1rem; }
 
 @media screen and (min-width: 64em) {
   .project-name {
-    font-size: 4rem; } }
+    font-size: 3.25rem; } }
 
 @media screen and (min-width: 42em) and (max-width: 64em) {
   .project-name {
@@ -90,21 +90,21 @@ a {
 
 .project-tagline {
   margin-top: 0.1rem;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
   font-weight: normal;
   opacity: 0.9; }
 
 @media screen and (min-width: 64em) {
   .project-tagline {
-    font-size: 1.25rem; } }
+    font-size: 1.15rem; } }
 
 @media screen and (min-width: 42em) and (max-width: 64em) {
   .project-tagline {
-    font-size: 1.25rem; } }
+    font-size: 1.05rem;} }
 
 @media screen and (max-width: 42em) {
   .project-tagline {
-    font-size: 1rem; } }
+    font-size: 0.9rem; } }
 
 .main-content :first-child {
   margin-top: 0; }
@@ -122,16 +122,36 @@ a {
   font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
   font-size: 0.9rem;
   color: #33454e;
-  background-color: #e1e1e1;
+  background-color: #cacaca;
   border-radius: 0.3rem; }
-.main-content pre {
+.main-content consoleout {
+  display: block;
   padding: 0.8rem;
   margin-top: 0;
   margin-bottom: 1rem;
   font: 1rem Consolas, "Liberation Mono", Menlo, Courier, monospace;
   color: #33454e;
   word-wrap: normal;
-  background-color: #e1e1e1;
+  background-color: #000000;
+  border: solid 1px #191919;
+  border-radius: 0.3rem; }
+  .main-content consoleout > code {
+    padding: 0;
+    margin: 0;
+    font-size: 0.9rem;
+    color: #38c429;
+    word-break: normal;
+    white-space: pre;
+    background: transparent;
+    border: 0; }
+.main-content pre {
+  padding: 0.8rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font: 1rem Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  color: #323232;
+  word-wrap: normal;
+  background-color: #cacaca;
   border: solid 1px #191919;
   border-radius: 0.3rem; }
   .main-content pre > code {
@@ -148,7 +168,16 @@ a {
   .main-content .highlight pre {
     margin-bottom: 0;
     word-break: normal; }
+  .main-content .highlight consoleout {
+    margin-bottom: 0;
+    word-break: normal; }
 .main-content .highlight pre, .main-content pre {
+  padding: 0.8rem;
+  overflow: auto;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  border-radius: 0.3rem; }
+.main-content .highlight consoleout, .main-content consoleout {
   padding: 0.8rem;
   overflow: auto;
   font-size: 0.9rem;
@@ -164,7 +193,19 @@ a {
   word-wrap: normal;
   background-color: transparent;
   border: 0; }
+.main-content consoleout code, .main-content consoleout tt {
+  display: inline;
+  max-width: initial;
+  padding: 0;
+  margin: 0;
+  overflow: initial;
+  line-height: inherit;
+  word-wrap: normal;
+  background-color: transparent;
+  border: 0; }
   .main-content pre code:before, .main-content pre code:after, .main-content pre tt:before, .main-content pre tt:after {
+    content: normal; }
+  .main-content consoleout code:before, .main-content consoleout code:after, .main-content consoleout tt:before, .main-content consoleout tt:after {
     content: normal; }
 .main-content ul, .main-content ol {
   margin-top: 0; }

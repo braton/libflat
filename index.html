@@ -19,8 +19,8 @@
     </section>
 
     <section class="main-content">
-      <h2>
-<a id="overview" class="anchor" href="#overview" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Overview</h2>
+      <h3>
+<a id="overview" class="anchor" href="#overview" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Overview</h3>
 
 <p>Libflat is a library for fast serialization of C/C++ structures. Its main goal is speed (and of course correctness). Most of the time when you serialize your data the speed doesn't matter (in contrast to other factors like simplicity, good coverage etc.). But there are some cases when the speed is crucial, i.e. you're working with some big data sets and you need to serialize/deserialize them often (you might have some H/W device that produces a mass od data and you want to read in and process this data on another machine). <br></p>
 
@@ -28,7 +28,7 @@
 
 <p>Good example for using Libflat is Android build system (still based on Makefile build system as of Feb. 2016). Android build system is monolithic which makes it extremely parallelizable. The main obstacle though is that you need to read all the makefiles up front (and there is lots of them). Trying it with hot caches gives the following (tests for android-6.0.0_r5)<br></p>
 
-<pre><code>$ source build/envsetup.sh
+<consoleout><code>$ source build/envsetup.sh
 $ lunch aosp_arm64-eng
 $ time make
 ============================================
@@ -58,14 +58,14 @@ including ./bionic/Android.mk ...
 including ./system/security/softkeymaster/Android.mk ...
 including ./system/vold/Android.mk ...
 including ./tools/external/fat32lib/Android.mk ...
-</code></pre>
+</code></consoleout/>
 
 <p>Summary:</p>
 
-<pre><code>  real  0m41.977s
+<consoleout><code>  real  0m41.977s
   user  0m32.590s
   sys   0m9.654s
-</code></pre>
+</code></consoleout/>
 
 <p>Not so bad, especially when you have a lots of RAM (so the only job that needs to be done is to parse all the Makefiles in memory using one thread). But what if we can omit the parsing phase at all and read in the whole memory content ready for going (or almost ready)?</p>
 
@@ -101,11 +101,11 @@ Memory image is flat, i.e. whole copied memory image has continuous addresses. P
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Flattening done. Summary:
+<consoleout><code># Flattening done. Summary:
   Memory size: 4 bytes
   Linked 0 pointers
   Written 44 bytes
-</code></pre>
+</code></consoleout>
 
 <p>On the other side reading the stored value can be now done by:</p>
 
@@ -130,13 +130,13 @@ Memory image is flat, i.e. whole copied memory image has continuous addresses. P
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Unflattening done. Summary:
+<consoleout><code># Unflattening done. Summary:
   Image read time: 0.000036s
   Fixing memory time: 0.000000s
   Total time: 0.000063s
   Total bytes read: 44
   DABBAD00
-</code></pre>
+</code></consoleout>
 
 <p>Similar procedure can be done with arrays and strings as in the below examples:</p>
 
@@ -172,11 +172,11 @@ Memory image is flat, i.e. whole copied memory image has continuous addresses. P
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Flattening done. Summary:
+<consoleout><code># Flattening done. Summary:
   Memory size: 363 bytes
   Linked 0 pointers
   Written 411 bytes
-</code></pre>
+</code></consoleout>
 
 <div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
 #<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
@@ -204,7 +204,7 @@ Memory image is flat, i.e. whole copied memory image has continuous addresses. P
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Unflattening done. Summary:
+<consoleout><code># Unflattening done. Summary:
   Image read time: 0.000055s
   Fixing memory time: 0.000000s
   Total time: 0.000100s
@@ -214,7 +214,7 @@ Memory image is flat, i.e. whole copied memory image has continuous addresses. P
 317811 514229 832040 1346269 2178309 3524578 5702887 9227465
 14930352 24157817 39088169 63245986 
 Fibonacci would not calculate this as fast
-</code></pre>
+</code></consoleout>
 
 <p>This brings the notion of the so called root pointer. When you read the contents of memory you will have a block of data to your disposal. But how to access it? You need some pointer to any part of this memory (assuming you can interpret the memory from this point and link to other parts). This is what the root pointer is for. It is just a pointer to some part of unflatten memory. This has its own storage and is not part of the memory image (but of course it is part of the image file).<br></p>
 
@@ -280,11 +280,11 @@ Fibonacci would not calculate this as fast
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Flattening done. Summary:
+<consoleout><code># Flattening done. Summary:
   Memory size: 24 bytes
   Linked 2 pointers
   Written 80 bytes
-</code></pre>
+</code></consoleout>
 
 <p>You have just written three values into memory (two pointers and one double value). How so?<br></p>
 
@@ -338,13 +338,13 @@ Fibonacci would not calculate this as fast
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Unflattening done. Summary:
+<consoleout><code># Unflattening done. Summary:
   Image read time: 0.000058s
   Fixing memory time: 0.000001s
   Total time: 0.000105s
   Total bytes read: 80
 The magic answer to the ultimate question of life?: 3.141593
-</code></pre>
+</code></consoleout>
 
 <p>In the write output you can now see the line that says:
 <code>Linked 2 pointers</code>
@@ -395,14 +395,14 @@ The memory image contained two pointers as we just explained. But after reading 
 
 <p>And the result of running it:</p>
 
-<pre><code>  &amp;carr[0]: 0x6020c0
+<consoleout><code>  &amp;carr[0]: 0x6020c0
   &amp;start: 0x7fff9da3a8c0 -&gt; 0x6020c0
   &amp;middle: 0x7fff9da3a8c8 -&gt; 0x6020e9
     # Flattening done. Summary:
     Memory size: 87 bytes
     Linked 2 pointers
     Written 151 bytes
-</code></pre>
+</code></consoleout>
 
 <p>The original memory looks as follows:</p>
 
@@ -476,7 +476,7 @@ During unflattening stage (as in the below example) several things happen.</p>
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Unflattening done. Summary:
+<consoleout><code># Unflattening done. Summary:
   Image read time: 0.000037s
   Fixing memory time: 0.000001s
   Total time: 0.000068s
@@ -487,7 +487,7 @@ During unflattening stage (as in the below example) several things happen.</p>
 *(0x8de2ef) =&gt; 0x8de2c9
 You don't need to be great to start, but you need to start to be great
 Remember: you need to start to be great
-</code></pre>
+</code></consoleout>
 
 <p>New memory area is created in the allocated storage area (the heap) and memory image is read in:</p>
 
@@ -559,11 +559,11 @@ Finally we read two root pointers at offset location 0x47 and 0x4f which happens
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Flattening done. Summary:
+<consoleout><code># Flattening done. Summary:
   Memory size: 105 bytes
   Linked 5 pointers
   Written 185 bytes
-</code></pre>
+</code></consoleout>
 
 <p>Here, for each pointer in the array <code>argv</code> we create temporary variable <code>arg</code> of type <code>const char*</code> which we can use in the subsequent block of code. We must specify the size of the array. We might know it in advance or we can compute it in real time. In case of arrays terminated with pointer 0 (NULL pointer) there is function <code>ptrarrmemlen</code> available for this purpose. It simply iterates through entire pointer array and counts the pointers until it reaches the pointer 0 (and counts it as well). Similar function is used internally by the <code>FLATTEN_STRING</code> macro, i.e. <code>strmemlen</code> function which returns the length of string including NULL terminating 0 value.<br></p>
 
@@ -594,7 +594,7 @@ Finally we read two root pointers at offset location 0x47 and 0x4f which happens
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code># Unflattening done. Summary:
+<consoleout><code># Unflattening done. Summary:
   Image read time: 0.000057s
   Fixing memory time: 0.000001s
   Total time: 0.000104s
@@ -604,7 +604,7 @@ Argument 0
 Argument 1
 Argument 2
 Argument 3
-</code></pre>
+</code></consoleout>
 
       <footer class="site-footer">
         <span class="site-footer-owner"><a href="https://github.com/braton/libflat">Libflat</a> is maintained by <a href="https://github.com/braton">braton</a>.</span>
