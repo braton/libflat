@@ -306,7 +306,7 @@ Fibonacci would not calculate this as fast
 
 <p>The following code we does the same trick, i.e. writes the value pointed by <code>p</code> (of type double*):</p>
 
-<div class="highlight highlight-source-c"><pre><span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">double</span>*,p);</pre></div>
+<div class="highlight highlight-source-c"><pre><span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">double</span>*, p);</pre></div>
 
 <p>Finally we create another variable <code>q</code> that acquires the value pointed by <code>p</code> (which finally points to the magic double value) and writes the double number to the memory image:</p>
 
