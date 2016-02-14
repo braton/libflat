@@ -8,3 +8,15 @@ flattest
 *.i
 *.so
 *.a
+*.pdb
+*.obj
+*.exe
+*.idb
+*.log
+*.dll
+*.lib
+*.tlog
+*.ilk
+.vs
+*.sdf
+*.VC.opendb
