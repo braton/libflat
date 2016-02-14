@@ -254,7 +254,7 @@ int fixup_set_insert(struct interval_tree_node* node, size_t offset, struct flat
 	struct fixup_set_node* inode = fixup_set_search(node->start+offset);
 
 	if (inode) {
-		assert((inode->ptr->node->start+inode->ptr->offset)==(ptr->node->start+ptr->offset));
+		assert((inode->ptr->node->start+inode->ptr->offset)==(ptr->node->start+ptr->offset) && "Multiple pointer mismatch for the same storage");
 		free(ptr);
 		return 0;
 	}
@@ -402,8 +402,8 @@ struct flatten_pointer* get_pointer_node(const void* _ptr) {
 	struct interval_tree_node *node = interval_tree_iter_first(&FLCTRL.imap_root, (uintptr_t)_ptr, (uintptr_t)_ptr+sizeof(void*)-1);
 	if (node) {
 		uintptr_t p = (uintptr_t)_ptr;
-		assert(node->start<=p);
-		assert(node->last>=p+sizeof(void*)-1);
+		assert(node->start<=p && "Invalid pointer address");
+		assert(node->last>=p+sizeof(void*)-1 && "Invalid pointer address");
 		return make_flatten_pointer(node,p-node->start);
 	}
 	else {

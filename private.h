@@ -132,7 +132,6 @@ struct root_addrnode {
 };
 size_t root_addr_count();
 
-void* root_pointer_seq(size_t index);
 void fix_unflatten_memory(struct flatten_header* hdr, void* memory);
 
 #ifdef __linux__

@@ -128,6 +128,7 @@ extern int fixup_set_insert(struct interval_tree_node* node, size_t offset, stru
 extern struct flatten_pointer* get_pointer_node(const void* _ptr);
 extern void root_addr_append(size_t root_addr);
 void* root_pointer_next();
+void* root_pointer_seq(size_t index);
 
 extern struct interval_tree_node * interval_tree_iter_first(struct rb_root *root, uintptr_t start, uintptr_t last);
 extern struct rb_node* interval_tree_insert(struct interval_tree_node *node, struct rb_root *root);
@@ -191,7 +192,7 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 #define AGGREGATE_FLATTEN_STRUCT_ARRAY(T,f,n)	do {	\
 		DBGM3(AGGREGATE_FLATTEN_STRUCT_ARRAY,T,f,n);	\
     	if (ATTR(f)) {	\
-    		int _i;	\
+    		size_t _i;	\
     		void* _fp_first=0;	\
     		for (_i=0; _i<(n); ++_i) {	\
     			void* _fp = (void*)flatten_struct_##T(ATTR(f)+_i);	\
