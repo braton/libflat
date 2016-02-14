@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+
+import sys
+import matplotlib.pyplot as plt
+from matplotlib.path import Path
+import matplotlib.patches as patches
+import numpy as np
+from operator import itemgetter
+
+if len(sys.argv)<=1:
+    print "Usage:\n  draw_circle N"
+    sys.exit(1)
+
+N = int(sys.argv[1])
+radius = 1.0
+angle = 2 * np.pi / N
+
+edge_verts = [ ( np.cos(angle*(radius*(i))), np.sin(angle*(radius*(i))) ) for i in xrange(N+1) ]
+edge_codes = [Path.MOVETO] + [Path.LINETO for u in xrange(N-1)] + [Path.CLOSEPOLY]
+
+diag_verts = list()
+diag_codes = list()
+for i in xrange(N):
+    for j in xrange(i+1,N):
+        diag_verts.append(( np.cos(angle*(radius*(i))), np.sin(angle*(radius*(i))) ))
+        diag_codes.append(Path.MOVETO)
+        diag_verts.append(( np.cos(angle*(radius*(j))), np.sin(angle*(radius*(j))) ))
+        diag_codes.append(Path.LINETO)
+
+edge_path = Path(edge_verts, edge_codes)
+diag_path = Path(diag_verts, diag_codes)
+fig = plt.figure()
+ax = fig.add_subplot(111)
+edge_patch = patches.PathPatch(edge_path, facecolor='white', lw=1.5)
+diag_patch = patches.PathPatch(diag_path, facecolor='white', lw=0.5)
+ax.add_patch(edge_patch)
+ax.add_patch(diag_patch)
+ax.set_xlim(-1.5,1.5)
+ax.set_ylim(-1.5,1.5)
+plt.grid(True)
+plt.scatter(map(itemgetter(0), edge_verts[:-1]),map(itemgetter(1), edge_verts[:-1]), s=[80 for u in xrange(len(edge_verts)-1)],
+            c=['#ff6600' for u in xrange(len(edge_verts)-1)], alpha=0.5)
+ax.annotate("struct point {}",xy=edge_verts[1],xytext=(edge_verts[1][0]+0.05,edge_verts[1][1]+0.05), size=14)
+fig.patch.set_facecolor('blue')
+fig.patch.set_alpha(0.7)
+ax.patch.set_facecolor('red')
+ax.patch.set_alpha(0.5)
+plt.show()
