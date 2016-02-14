@@ -1,4 +1,7 @@
-.*
+.pydevproject
+.project
+.cproject
+.settings
 flattest
 *.d
 *.o
