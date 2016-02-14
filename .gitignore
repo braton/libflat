@@ -1,0 +1,7 @@
+.*
+flattest
+*.d
+*.o
+*.i
+*.so
+*.a
