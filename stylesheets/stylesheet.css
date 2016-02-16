@@ -123,7 +123,7 @@ a {
   font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
   font-size: 0.9rem;
   color: #33454e;
-  background-color: #efefef;
+  background-color: #fff;
   border-radius: 0.3rem; }
 .main-content consoleout {
   display: block;
@@ -152,14 +152,14 @@ a {
   font: 1rem Consolas, "Liberation Mono", Menlo, Courier, monospace;
   color: #323232;
   word-wrap: normal;
-  background-color: #efefef;
+  background-color: #fff;
   border: solid 1px #d6d6d6;
   border-radius: 0.3rem; }
   .main-content pre > code {
     padding: 0;
     margin: 0;
     font-size: 0.9rem;
-    color: #33454e;
+    color: #323232;
     word-break: normal;
     white-space: pre;
     background: transparent;
