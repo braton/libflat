@@ -7,11 +7,11 @@ body {
   font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 1.5;
-  color: #bbbbbb;
-  background: #292a2a; }
+  color: #383838;
+  background: #ececec; }
 
 a {
-  color: #C76E00;
+  color: #517a14;
   text-decoration: none; }
   a:hover {
     text-decoration: underline; }
@@ -20,8 +20,9 @@ a {
   display: inline-block;
   margin-bottom: 1rem;
   color: rgba(255, 255, 255, 1);
-  background-color: rgba(48, 49, 50, 0.8);
-  border-color: rgba(33, 34, 35, 0.2);
+  background-color: #517a14;
+  background-image: linear-gradient(180deg, #75AF1D, #2e460b);
+  border-color: rgba(33, 34, 35, 1);
   border-style: solid;
   border-width: 1px;
   border-radius: 0.3rem;
@@ -32,8 +33,8 @@ a {
 .btn:hover {
   color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3); }
+  background-color: rgba(255, 255, 255, 1);
+  border-color: rgba(255, 255, 255, 1); }
 
 @media screen and (min-width: 64em) {
   .btn {
@@ -57,8 +58,8 @@ a {
 .page-header {
   color: #ddd;
   text-align: center;
-  background-color: #C72E00;
-  background-image: linear-gradient(120deg, #C72E00, #C76E00); }
+  background-color: #0f0f0f;
+  background-image: linear-gradient(180deg, #0f0f0f, #343434); }
 
 @media screen and (min-width: 64em) {
   .page-header {
@@ -114,7 +115,7 @@ a {
   margin-top: 2rem;
   margin-bottom: 1rem;
   font-weight: bold;
-  color: #bbbbbb;}
+  color: #383838;}
 .main-content p {
   margin-bottom: 1em; }
 .main-content code {
@@ -122,7 +123,7 @@ a {
   font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
   font-size: 0.9rem;
   color: #33454e;
-  background-color: #cacaca;
+  background-color: #efefef;
   border-radius: 0.3rem; }
 .main-content consoleout {
   display: block;
@@ -133,7 +134,7 @@ a {
   color: #33454e;
   word-wrap: normal;
   background-color: #000000;
-  border: solid 1px #191919;
+  border: solid 1px #cccccc;
   border-radius: 0.3rem; }
   .main-content consoleout > code {
     padding: 0;
@@ -151,8 +152,8 @@ a {
   font: 1rem Consolas, "Liberation Mono", Menlo, Courier, monospace;
   color: #323232;
   word-wrap: normal;
-  background-color: #cacaca;
-  border: solid 1px #191919;
+  background-color: #efefef;
+  border: solid 1px #d6d6d6;
   border-radius: 0.3rem; }
   .main-content pre > code {
     padding: 0;
