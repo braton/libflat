@@ -370,7 +370,11 @@ static inline void* libflat_realloc (void* ptr, size_t size) {
 	if ( (FLCTRL.mem) && ((unsigned char*)ptr>=FLATTEN_MEMORY_START) && ((unsigned char*)ptr<FLATTEN_MEMORY_END) ) {
 		/* Trying to realloc a part of unflatten memory. Allocate new storage and let the part of unflatten memory fade away */
 		void* m = malloc(size);
-		if (m) return m; else return ptr;
+		if (m) {
+			memcpy(m,ptr,((unsigned char*)ptr+size>FLATTEN_MEMORY_END)?((size_t)(FLATTEN_MEMORY_END-(unsigned char*)ptr)):(size));
+			return m;
+		}
+		else return ptr;
 	}
 	else {
 		/* Original realloc. Make sure "realloc" is not redefined at this point */
