@@ -1,10 +1,11 @@
 @ Introduction
 
-Libflat is a library for fast serialization of C/C++ structures. Its main goal is speed (and of course correctness). Most of the time when you serialize your data the speed doesn't matter (in contrast to other factors like simplicity, good coverage etc.). But there are some cases when the speed is crucial, i.e. you're working with some big data sets and you need to serialize/deserialize them often (you might have some H/W device that produces a mass od data and you want to read in and process this data on another machine).
+Libflat is a library for fast serialization of C structures. Its main goal is speed (and of course correctness). Most of the time when you serialize your data the speed doesn't really matter (in contrast to other factors like simplicity, good coverage etc.). But there are cases when the speed is crucial, i.e. you're working with some big data sets and you need to serialize/deserialize them often (you might have some H/W device that produces a mass of data for further processing and you want to read in and analyze this data on another machine).
 
-In standard approach for serialization you pick up or design some protocol, choose low-level medium (like JSON) and write the logic to save your structures. On the other side of the mirror you read in the packets, figure out what they represent and combine them to recreate your beloved data. This is fine. Everybody do that. This works well. Unfortunately sometimes this works slow (rarely though and most of the times you can get away with it). Libflat is about to make this process as fast as possible by all cost. If you need this sort of speed standard you might want to check this out.
+In standard approach for serialization you pick up or design some protocol (e.g. based on JSON) and write the logic to save your structures. On the other side of the mirror you read in the packets, figure out what they represent and combine them to recreate your beloved data. This is fine. This works well. Unfortunately sometimes this works rather slow (rarely though and most of the time you can get away with it). Libflat is about to make this process as fast as possible by all cost. 
 
-Good example for using Libflat is Android build system (still based on Makefile build system as of Feb. 2016). Androd build system is monolithic which makes it extremely parallelizable. The main obstacle though is that you need to read all the makefiles up front (and there is lots of them). Trying it with hot caches gives the following (tests for android-6.0.0_r5)
+Good example for using Libflat is Android build system (still based on Makefile build system as of Feb. 2016). Androd build system is monolithic which makes it extremely parallelizable. 
+The main obstacle though (especially when you need to do lots of partial builds) is that you need to read all the makefiles up front (and there is lots of them). Trying it with hot caches gives the following (tests for android-6.0.0_r5)
 
 ------------------------------------------------
 $ source build/envsetup.sh
@@ -41,9 +42,9 @@ including ./tools/external/fat32lib/Android.mk ...
 
 Summary:
 ------------------------------------------------
-real	0m41.977s
-user	0m32.590s
-sys		0m9.654s
+real    0m41.977s
+user    0m32.590s
+sys     0m9.654s
 ------------------------------------------------
 
 Not so bad, especially when you have lots of RAM (so the only job that needs to be done is to parse all the Makefiles in memory using one thread). But what if we can omit the parsing phase at all and read in the whole memory content ready for going (or almost ready)?
@@ -61,22 +62,22 @@ Simplest possible case of serialization can be made for automatic int variable a
 
 int main(void) {
 
-	FILE* out = fopen("/tmp/memory.img", "w");
-	assert(out);
-	flatten_init();
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
 
-	int automatic = 0xDABBAD00;
+    int automatic = 0xDABBAD00;
 
-	FOR_ROOT_POINTER(&automatic,
-		FLATTEN_TYPE(int,&automatic);
-	);
+    FOR_ROOT_POINTER(&automatic,
+        FLATTEN_TYPE(int,&automatic);
+    );
 
-	assert(flatten_write(out) == 0);
+    assert(flatten_write(out) == 0);
 
-	flatten_fini();
-	fclose(out);
+    flatten_fini();
+    fclose(out);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -96,19 +97,19 @@ On the other side reading the stored value can be now done by:
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r");
-	assert(in);
-	unflatten_init();
+    FILE* in = fopen("/tmp/memory.img", "r");
+    assert(in);
+    unflatten_init();
 
-	assert(unflatten_read(in) == 0);
+    assert(unflatten_read(in) == 0);
 
-	int* now_allocated = ROOT_POINTER_NEXT(int*);
-	printf("%08X\n", *now_allocated);
+    int* now_allocated = ROOT_POINTER_NEXT(int*);
+    printf("%08X\n", *now_allocated);
 
-	unflatten_fini();
-	fclose(in);
+    unflatten_fini();
+    fclose(in);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -130,30 +131,30 @@ Similar procedure can be done with arrays and strings as in the below examples:
 
 int main(void) {
 
-	FILE* out = fopen("/tmp/memory.img", "w");
-	assert(out);
-	flatten_init();
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
 
-	int i;
-	const char* s = "Fibonacci would not calculate this as fast";
-	long fib[40] = { 0, 1 };
-	for (i = 2; i < 40; ++i)
-		fib[i] = fib[i - 1] + fib[i - 2];
+    int i;
+    const char* s = "Fibonacci would not calculate this as fast";
+    long fib[40] = { 0, 1 };
+    for (i = 2; i < 40; ++i)
+        fib[i] = fib[i - 1] + fib[i - 2];
 
-	FOR_ROOT_POINTER(fib,
-		FLATTEN_TYPE_ARRAY(long,fib,40);
-	);
+    FOR_ROOT_POINTER(fib,
+        FLATTEN_TYPE_ARRAY(long,fib,40);
+    );
 
-	FOR_ROOT_POINTER(s,
-		FLATTEN_STRING(s);
-	);
+    FOR_ROOT_POINTER(s,
+        FLATTEN_STRING(s);
+    );
 
-	assert(flatten_write(out) == 0);
+    assert(flatten_write(out) == 0);
 
-	flatten_fini();
-	fclose(out);
+    flatten_fini();
+    fclose(out);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -171,25 +172,25 @@ $ examples/2-in
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r");
-	assert(in);
-	unflatten_init();
+    FILE* in = fopen("/tmp/memory.img", "r");
+    assert(in);
+    unflatten_init();
 
-	assert(unflatten_read(in) == 0);
+    assert(unflatten_read(in) == 0);
 
-	long* fib = ROOT_POINTER_SEQ(long*, 0);
-	const char* s = ROOT_POINTER_SEQ(const char*, 1);
+    long* fib = ROOT_POINTER_SEQ(long*, 0);
+    const char* s = ROOT_POINTER_SEQ(const char*, 1);
 
-	int i;
-	for (i = 0; i < 40; ++i)
-		printf("%ld ", fib[i]);
-	printf("\n");
-	printf("%s\n", s);
+    int i;
+    for (i = 0; i < 40; ++i)
+        printf("%ld ", fib[i]);
+    printf("\n");
+    printf("%s\n", s);
 
-	unflatten_fini();
-	fclose(in);
+    unflatten_fini();
+    fclose(in);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -210,7 +211,7 @@ Let's back to our first example.
 int automatic = 0xDABBAD00;
 
 FOR_ROOT_POINTER(&automatic,
-	FLATTEN_TYPE(int,&automatic);
+    FLATTEN_TYPE(int,&automatic);
 );
 
 We simply told our flattener engine that we want to access the memory through the address of the "automatic" variable (i.e. we will hold it reference). Check out that flattened memory size is 4 c-bytes (which happens to be the sizeof(int) on my example making machine). But it doesn't need to be this way. We can modify the first example slightly and specify the root pointer address through some other pointer variable:
@@ -219,7 +220,7 @@ int automatic = 0xDABBAD00;
 int * pi = &automatic;
 
 FOR_ROOT_POINTER(pi,
-	FLATTEN_TYPE(int,&automatic);
+    FLATTEN_TYPE(int,&automatic);
 );
 
 After image read we just assign this value to our own defined variable as below:
@@ -240,31 +241,31 @@ As you might have noticed in order to flatten some type you will need a pointer 
 
 int main(void) {
 
-	FILE* out = fopen("/tmp/memory.img", "w");
-	assert(out);
-	flatten_init();
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
 
-	double magic_number = 3.14159265359;
-	double* pointer_to_it = &magic_number;
-	double** pointer_to_pointer_to_it = &pointer_to_it;
-	double*** ehhh = &pointer_to_pointer_to_it;
+    double magic_number = 3.14159265359;
+    double* pointer_to_it = &magic_number;
+    double** pointer_to_pointer_to_it = &pointer_to_it;
+    double*** ehhh = &pointer_to_pointer_to_it;
 
-	FOR_ROOT_POINTER(ehhh,
-		FLATTEN_TYPE(double**,&pointer_to_pointer_to_it);
-		FOR_POINTER(double**,p,&pointer_to_pointer_to_it,
-			FLATTEN_TYPE(double*,p);
-			FOR_POINTER(double*,q,p,
-				FLATTEN_TYPE(double,q);
-			);
-		);
-	);
+    FOR_ROOT_POINTER(ehhh,
+        FLATTEN_TYPE(double**,&pointer_to_pointer_to_it);
+        FOR_POINTER(double**,p,&pointer_to_pointer_to_it,
+            FLATTEN_TYPE(double*,p);
+            FOR_POINTER(double*,q,p,
+                FLATTEN_TYPE(double,q);
+            );
+        );
+    );
 
-	assert(flatten_write(out) == 0);
+    assert(flatten_write(out) == 0);
 
-	flatten_fini();
-	fclose(out);
+    flatten_fini();
+    fclose(out);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -300,7 +301,7 @@ FLATTEN_TYPE(double*,p);
 Finally we create another variable "q" that acquires the value pointed by "p" (which finally points to the magic double value) and writes the double number to the memory image:
 
 FOR_POINTER(double*,q,p,
-	FLATTEN_TYPE(double,q);
+    FLATTEN_TYPE(double,q);
 );
 
 Checking the stored value confirms our words:
@@ -312,19 +313,19 @@ Checking the stored value confirms our words:
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r");
-	assert(in);
-	unflatten_init();
+    FILE* in = fopen("/tmp/memory.img", "r");
+    assert(in);
+    unflatten_init();
 
-	assert(unflatten_read(in) == 0);
+    assert(unflatten_read(in) == 0);
 
-	double*** ehhh = ROOT_POINTER_SEQ(double***, 0);
-	printf("The magic answer to the ultimate question of life?: %f\n", ***ehhh);
+    double*** ehhh = ROOT_POINTER_SEQ(double***, 0);
+    printf("The magic answer to the ultimate question of life?: %f\n", ***ehhh);
 
-	unflatten_fini();
-	fclose(in);
+    unflatten_fini();
+    fclose(in);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -353,40 +354,40 @@ Consider the following block of code:
 
 int main(void) {
 
-	FILE* out = fopen("/tmp/memory.img", "w");
-	assert(out);
-	flatten_init();
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
 
-	static char carr[] = "You don't need to be great to start, "
-			"but you need to start to be great";
+    static char carr[] = "You don't need to be great to start, "
+            "but you need to start to be great";
 
-	const char* start = carr;
-	const char* middle = carr + 41;
+    const char* start = carr;
+    const char* middle = carr + 41;
 
-	FOR_ROOT_POINTER(start,
-		FLATTEN_TYPE(const char*,&start);
-		FOR_POINTER(const char*,s,&start,
-			FLATTEN_STRING(s);
-		);
-	);
+    FOR_ROOT_POINTER(start,
+        FLATTEN_TYPE(const char*,&start);
+        FOR_POINTER(const char*,s,&start,
+            FLATTEN_STRING(s);
+        );
+    );
 
-	FOR_ROOT_POINTER(middle,
-		FLATTEN_TYPE(const char*,&middle);
-		FOR_POINTER(const char*,s,&middle,
-			FLATTEN_STRING(s);
-		);
-	);
+    FOR_ROOT_POINTER(middle,
+        FLATTEN_TYPE(const char*,&middle);
+        FOR_POINTER(const char*,s,&middle,
+            FLATTEN_STRING(s);
+        );
+    );
 
-	printf("&carr[0]: %p\n", &carr[0]);
-	printf("&start: %p -> %p\n", &start, start);
-	printf("&middle: %p -> %p\n", &middle, middle);
+    printf("&carr[0]: %p\n", &carr[0]);
+    printf("&start: %p -> %p\n", &start, start);
+    printf("&middle: %p -> %p\n", &middle, middle);
 
-	assert(flatten_write(out) == 0);
+    assert(flatten_write(out) == 0);
 
-	flatten_fini();
-	fclose(out);
+    flatten_fini();
+    fclose(out);
 
-	return 0;
+    return 0;
 }
 
 And the result of running it:
@@ -406,8 +407,8 @@ The original memory looks as follows:
 
 Somewhere in the static memory area:
 0x6020c0: [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0]
-								 ^
-								 0x6020e9
+                                 ^
+                                 0x6020e9
 Somewhere on the stack:
 0x7fff9da3a8c0: [0x6020c0|0x6020e9]
 
@@ -418,22 +419,22 @@ Libflat will arrange memory image in ascending order of original addresses:
 and replace original pointer values with its position independent counterparts (independent from the starting address of the memory image in the process address space):
 
 [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x000000|0x000029]
- ^					   ^
- 0x000000			   0x000029
+ ^                     ^
+ 0x000000              0x000029
 
 It also needs to store two additional values, i.e. at which offset in the flattened memory area actual pointers appears (as we need to find them later):
 
 [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x000000|0x000029] [0x47,0x4f]
- 											 ^	   	  ^
- 											 0x47	  0x4f
+                                             ^        ^
+                                             0x47     0x4f
 
 Finally it also stores two root pointers (start and middle pointer values) as the offsets in the flattened memory image for later retrieval:
 
 [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x000000|0x000029] [0x47,0x4f] [0x47,0x4f]
-																			 ^	  ^
-																			 start offset
-																			 	  ^
-																				  middle offset
+                                                                             ^    ^
+                                                                             start offset
+                                                                                  ^
+                                                                                  middle offset
 
 In this example we have only two pointers and both of them are root pointers therefore stored values are duplicated. In real life scenarios we will probably have much more standard pointers and very few root pointers (as all must be manually setup by programmer).
 
@@ -447,28 +448,28 @@ During unflattening stage (as in the below example) several things happen.
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r");
-	assert(in);
-	unflatten_init();
+    FILE* in = fopen("/tmp/memory.img", "r");
+    assert(in);
+    unflatten_init();
 
-	assert(unflatten_read(in) == 0);
+    assert(unflatten_read(in) == 0);
 
-	const char* start = ROOT_POINTER_SEQ(const char*, 0);
-	const char* middle = ROOT_POINTER_SEQ(const char*, 1);
+    const char* start = ROOT_POINTER_SEQ(const char*, 0);
+    const char* middle = ROOT_POINTER_SEQ(const char*, 1);
 
-	printf("&start: %p -> %p\n", &start, start);
-	printf("&middle: %p -> %p\n", &middle, middle);
-	const void* ptr1 = start + strlen(start) + 1;
-	printf("*(%p) => %p\n", ptr1, *(void**) ptr1);
-	const void* ptr2 = start + strlen(start) + 1 + sizeof(const char*);
-	printf("*(%p) => %p\n", ptr2, *(void**) ptr2);
-	printf("%s\n", start);
-	printf("Remember: %s\n", middle);
+    printf("&start: %p -> %p\n", &start, start);
+    printf("&middle: %p -> %p\n", &middle, middle);
+    const void* ptr1 = start + strlen(start) + 1;
+    printf("*(%p) => %p\n", ptr1, *(void**) ptr1);
+    const void* ptr2 = start + strlen(start) + 1 + sizeof(const char*);
+    printf("*(%p) => %p\n", ptr2, *(void**) ptr2);
+    printf("%s\n", start);
+    printf("Remember: %s\n", middle);
 
-	unflatten_fini();
-	fclose(in);
+    unflatten_fini();
+    fclose(in);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -489,16 +490,16 @@ Remember: you need to start to be great
 New memory area is created in the allocated storage area (the heap) and memory image is read in:
 
 0x8de2a0: [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x000000|0x000029] [0x47,0x4f] [0x47,0x4f]
-								 ^
-								 0x8de2c9
+                                 ^
+                                 0x8de2c9
 
 Now we read two pointer offsets (0x47 and 0x4f) and fix two pointers at these offsets by adding the initial address of the allocated memory area to the position independent pointer value:
 
 0x8de2a0: [Y|o|u| |d|...|b|u|t| |y|o|u|...|g|r|e|a|t|0|0x8de2a0|0x8de2c9] [0x47,0x4f] [0x47,0x4f]
-								 ^					   ^		^		  ^ pointer offset array
-								 0x8de2c9			   0x47		0x4f				   ^
-								 					   ^		^					   root pointer offset array
-								 					   0x8de2e7 0x8de2ef
+                                 ^                     ^        ^         ^ pointer offset array
+                                 0x8de2c9              0x47     0x4f                   ^
+                                                       ^        ^                      root pointer offset array
+                                                       0x8de2e7 0x8de2ef
 
 Now the first pointer points at the beginning of the string and second points in the middle. This process is called linking and this is what the line "Linked 2 pointers" was talking about.
 
@@ -527,27 +528,27 @@ There is actually more you can do with pointers. For instance you can manage arr
 
 int main(void) {
 
-	FILE* out = fopen("/tmp/memory.img", "w");
-	assert(out);
-	flatten_init();
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
 
-	const char* argv[] = { "Program name", "Argument 0", "Argument 1",
-			"Argument 2", "Argument 3", 0 };
+    const char* argv[] = { "Program name", "Argument 0", "Argument 1",
+            "Argument 2", "Argument 3", 0 };
 
-	FOR_ROOT_POINTER(argv,
-		FOREACH_POINTER(const char*,arg,argv,
-				ptrarrmemlen((const void * const*)argv),
-			FLATTEN_TYPE(const char*,arg);
-			FLATTEN_STRING(arg);
-		);
-	);
+    FOR_ROOT_POINTER(argv,
+        FOREACH_POINTER(const char*,arg,argv,
+                ptrarrmemlen((const void * const*)argv),
+            FLATTEN_TYPE(const char*,arg);
+            FLATTEN_STRING(arg);
+        );
+    );
 
-	assert(flatten_write(out) == 0);
+    assert(flatten_write(out) == 0);
 
-	flatten_fini();
-	fclose(out);
+    flatten_fini();
+    fclose(out);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -569,22 +570,22 @@ In the code body we first flatten the pointer itself and then we flatten the str
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r");
-	assert(in);
-	unflatten_init();
+    FILE* in = fopen("/tmp/memory.img", "r");
+    assert(in);
+    unflatten_init();
 
-	assert(unflatten_read(in) == 0);
+    assert(unflatten_read(in) == 0);
 
-	const char** argv = ROOT_POINTER_NEXT(const char**);
-	while (*argv) {
-		printf("%s\n", *argv);
-		argv++;
-	}
+    const char** argv = ROOT_POINTER_NEXT(const char**);
+    while (*argv) {
+        printf("%s\n", *argv);
+        argv++;
+    }
 
-	unflatten_fini();
-	fclose(in);
+    unflatten_fini();
+    fclose(in);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -612,50 +613,50 @@ However you have to provide recipe how to actually flatten structure internal fi
 #include "libflat.h"
 
 struct point {
-	double x;
-	double y;
+    double x;
+    double y;
 };
 
 struct edge {
-	struct point p[2];
-	struct edge* e;
+    struct point p[2];
+    struct edge* e;
 };
 
 struct figure {
-	const char* name;
-	struct edge* e;
+    const char* name;
+    struct edge* e;
 };
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(figure);
 
 int main(void) {
 
-	FILE* out = fopen("/tmp/memory.img", "w");
-	assert(out);
-	flatten_init();
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
 
-	struct point sqv[4] = {{1.0,1.0},{1.0,-1.0},{-1.0,-1.0},{-1.0,1.0}};
-	struct edge sqe[4] = {
-			{ {sqv[0],sqv[1]}, &sqe[1] },
-			{ {sqv[1],sqv[2]}, &sqe[2] },
-			{ {sqv[2],sqv[3]}, &sqe[3] },
-			{ {sqv[3],sqv[0]}, &sqe[0] }
-	};
+    struct point sqv[4] = {{1.0,1.0},{1.0,-1.0},{-1.0,-1.0},{-1.0,1.0}};
+    struct edge sqe[4] = {
+            { {sqv[0],sqv[1]}, &sqe[1] },
+            { {sqv[1],sqv[2]}, &sqe[2] },
+            { {sqv[2],sqv[3]}, &sqe[3] },
+            { {sqv[3],sqv[0]}, &sqe[0] }
+    };
 
-	struct figure square = { "square", sqe };
+    struct figure square = { "square", sqe };
 
-	printf("sizeof(struct figure): %zu\n", sizeof(struct figure));
+    printf("sizeof(struct figure): %zu\n", sizeof(struct figure));
 
-	FOR_ROOT_POINTER(&square,
-		FLATTEN_STRUCT(figure,&square);
-	);
+    FOR_ROOT_POINTER(&square,
+        FLATTEN_STRUCT(figure,&square);
+    );
 
-	assert(flatten_write(out) == 0);
+    assert(flatten_write(out) == 0);
 
-	flatten_fini();
-	fclose(out);
+    flatten_fini();
+    fclose(out);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -672,12 +673,12 @@ As we can see the structure has been actually flattened but quick glance reveals
 The function providing the recipe how to flatten internal structure fields is called FUNCTION_DEFINE_FLATTEN_STRUCT. We should provide the type of the structure and the code responsible for writing structure content. Let's workout the example a little more and add the following functions:
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(edge,
-	AGGREGATE_FLATTEN_STRUCT(edge,e);
+    AGGREGATE_FLATTEN_STRUCT(edge,e);
 );
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(figure,
-	AGGREGATE_FLATTEN_STRING(name);
-	AGGREGATE_FLATTEN_STRUCT(edge,e);
+    AGGREGATE_FLATTEN_STRING(name);
+    AGGREGATE_FLATTEN_STRUCT(edge,e);
 );
 
 ------------------------------------------------
@@ -735,44 +736,44 @@ Reading up the square structure from memory image is straightforward:
 #include "libflat.h"
 
 struct point {
-	double x;
-	double y;
+    double x;
+    double y;
 };
 
 struct edge {
-	struct point p[2];
-	struct edge* e;
+    struct point p[2];
+    struct edge* e;
 };
 
 struct figure {
-	const char* name;
-	struct edge* e;
+    const char* name;
+    struct edge* e;
 };
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r");
-	assert(in);
-	unflatten_init();
+    FILE* in = fopen("/tmp/memory.img", "r");
+    assert(in);
+    unflatten_init();
 
-	assert(unflatten_read(in) == 0);
+    assert(unflatten_read(in) == 0);
 
-	const struct figure* square = ROOT_POINTER_NEXT(const struct figure*);
+    const struct figure* square = ROOT_POINTER_NEXT(const struct figure*);
 
-	struct edge* e = square->e;
-	double circumference = 0;
-	do {
-		circumference += sqrt(
-				pow(e->p[0].x - e->p[1].x, 2) + pow(e->p[0].y - e->p[1].y, 2));
-		e = e->e;
-	} while (e != square->e);
+    struct edge* e = square->e;
+    double circumference = 0;
+    do {
+        circumference += sqrt(
+                pow(e->p[0].x - e->p[1].x, 2) + pow(e->p[0].y - e->p[1].y, 2));
+        e = e->e;
+    } while (e != square->e);
 
-	printf("%s circumference: %f\n", square->name, circumference);
+    printf("%s circumference: %f\n", square->name, circumference);
 
-	unflatten_fini();
-	fclose(in);
+    unflatten_fini();
+    fclose(in);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -792,61 +793,61 @@ It would be also possible to flatten the entire structure with all links using m
 #include "libflat.h"
 
 struct point {
-	double x;
-	double y;
+    double x;
+    double y;
 };
 
 struct edge {
-	struct point p[2];
-	struct edge* e;
+    struct point p[2];
+    struct edge* e;
 };
 
 struct figure {
-	const char* name;
-	struct edge* e;
+    const char* name;
+    struct edge* e;
 };
 
 int main(void) {
 
-	FILE* out = fopen("/tmp/memory.img", "w");
-	assert(out);
-	flatten_init();
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
 
-	struct point sqv[4] = {{1.0,1.0},{1.0,-1.0},{-1.0,-1.0},{-1.0,1.0}};
-	struct edge sqe[4] = {
-			{ {sqv[0],sqv[1]}, &sqe[1] },
-			{ {sqv[1],sqv[2]}, &sqe[2] },
-			{ {sqv[2],sqv[3]}, &sqe[3] },
-			{ {sqv[3],sqv[0]}, &sqe[0] }
-	};
+    struct point sqv[4] = {{1.0,1.0},{1.0,-1.0},{-1.0,-1.0},{-1.0,1.0}};
+    struct edge sqe[4] = {
+            { {sqv[0],sqv[1]}, &sqe[1] },
+            { {sqv[1],sqv[2]}, &sqe[2] },
+            { {sqv[2],sqv[3]}, &sqe[3] },
+            { {sqv[3],sqv[0]}, &sqe[0] }
+    };
 
-	struct figure square = { "square", sqe };
+    struct figure square = { "square", sqe };
 
-	printf("sizeof(struct figure): %zu\n", sizeof(struct figure));
+    printf("sizeof(struct figure): %zu\n", sizeof(struct figure));
 
-	FOR_ROOT_POINTER(&square,
-		FOR_POINTER(const char*,n,&square.name,
-			FLATTEN_STRING(n);
-		);
-		FOR_POINTER(const char*,n,&square.e,
-			FLATTEN_TYPE(struct edge*,n);
-		);
-		struct edge* e = square.e;
-		do {
-			FOR_POINTER(struct edge*,pe,&e->e,
-				FLATTEN_TYPE_ARRAY(struct point,pe->p,2);
-				FLATTEN_TYPE(struct edge*,pe);
-			);
-			e = e->e;
-		} while(e!=square.e);
-	);
+    FOR_ROOT_POINTER(&square,
+        FOR_POINTER(const char*,n,&square.name,
+            FLATTEN_STRING(n);
+        );
+        FOR_POINTER(const char*,n,&square.e,
+            FLATTEN_TYPE(struct edge*,n);
+        );
+        struct edge* e = square.e;
+        do {
+            FOR_POINTER(struct edge*,pe,&e->e,
+                FLATTEN_TYPE_ARRAY(struct point,pe->p,2);
+                FLATTEN_TYPE(struct edge*,pe);
+            );
+            e = e->e;
+        } while(e!=square.e);
+    );
 
-	assert(flatten_write(out) == 0);
+    assert(flatten_write(out) == 0);
 
-	flatten_fini();
-	fclose(out);
+    flatten_fini();
+    fclose(out);
 
-	return 0;
+    return 0;
 }
 
 ------------------------------------------------
@@ -870,79 +871,79 @@ We will describe the flattening recipe for each structure as in the full example
 #include "libflat.h"
 
 struct point {
-	double x;
-	double y;
-	unsigned n;
-	struct point** other;
+    double x;
+    double y;
+    unsigned n;
+    struct point** other;
 };
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(point,
-	AGGREGATE_FLATTEN_TYPE_ARRAY(struct point*,other,ATTR(n));
-	FOREACH_POINTER(struct point*,p,ATTR(other),ATTR(n),
-			FLATTEN_STRUCT(point,p);
-	);
+    AGGREGATE_FLATTEN_TYPE_ARRAY(struct point*,other,ATTR(n));
+    FOREACH_POINTER(struct point*,p,ATTR(other),ATTR(n),
+            FLATTEN_STRUCT(point,p);
+    );
 );
 
 struct figure {
-	const char* name;
-	unsigned n;
-	struct point* points;
+    const char* name;
+    unsigned n;
+    struct point* points;
 };
 
 FUNCTION_DEFINE_FLATTEN_STRUCT(figure,
-	AGGREGATE_FLATTEN_STRING(name);
-	AGGREGATE_FLATTEN_STRUCT_ARRAY(point,points,ATTR(n));
+    AGGREGATE_FLATTEN_STRING(name);
+    AGGREGATE_FLATTEN_STRUCT_ARRAY(point,points,ATTR(n));
 );
 
 int main(int argc, char** argv) {
 
-	FILE* out = fopen("/tmp/memory.img", "w");
-	assert(out);
-	flatten_init();
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
 
-	assert(argc > 1);
-	struct figure circle = { "circle" };
-	assert(sscanf(argv[1], "%u", &circle.n) == 1);
-	assert(circle.n > 1);
-	circle.points = calloc(circle.n, sizeof(struct point));
-	assert(circle.points);
-	double radius = 1.0, angle = 2 * M_PI / circle.n;
+    assert(argc > 1);
+    struct figure circle = { "circle" };
+    assert(sscanf(argv[1], "%u", &circle.n) == 1);
+    assert(circle.n > 1);
+    circle.points = calloc(circle.n, sizeof(struct point));
+    assert(circle.points);
+    double radius = 1.0, angle = 2 * M_PI / circle.n;
 
-#define MAKE_POINT(p,i,N)	\
-	p.x = cos(angle*(radius*(i)));	\
-	p.y = sin(angle*(radius*(i)));	\
-	p.n = (N);	\
-	p.other = calloc((N),sizeof*p.other);	\
-	assert(p.other);
+#define MAKE_POINT(p,i,N)   \
+    p.x = cos(angle*(radius*(i)));  \
+    p.y = sin(angle*(radius*(i)));  \
+    p.n = (N);  \
+    p.other = calloc((N),sizeof*p.other);   \
+    assert(p.other);
 
-	unsigned i, j;
-	for (i = 0; i < circle.n; ++i) {
-		MAKE_POINT(circle.points[i], i, circle.n - 1);
-	}
-	for (i = 0; i < circle.n; ++i) {
-		unsigned u = 0;
-		for (j = 0; j < circle.n; ++j) {
-			if (i == j)
-				continue;
-			circle.points[i].other[u++] = &circle.points[j];
-		}
-	}
+    unsigned i, j;
+    for (i = 0; i < circle.n; ++i) {
+        MAKE_POINT(circle.points[i], i, circle.n - 1);
+    }
+    for (i = 0; i < circle.n; ++i) {
+        unsigned u = 0;
+        for (j = 0; j < circle.n; ++j) {
+            if (i == j)
+                continue;
+            circle.points[i].other[u++] = &circle.points[j];
+        }
+    }
 
-	FOR_ROOT_POINTER(&circle,
-		FLATTEN_STRUCT(figure,&circle);
-	);
+    FOR_ROOT_POINTER(&circle,
+        FLATTEN_STRUCT(figure,&circle);
+    );
 
-	for (i = 0; i < circle.n; ++i) {
-		free(circle.points[i].other);
-	}
-	free(circle.points);
+    for (i = 0; i < circle.n; ++i) {
+        free(circle.points[i].other);
+    }
+    free(circle.points);
 
-	assert(flatten_write(out) == 0);
+    assert(flatten_write(out) == 0);
 
-	flatten_fini();
-	fclose(out);
+    flatten_fini();
+    fclose(out);
 
-	return 0;
+    return 0;
 }
 
 The example code allows us to specify the number of points we want to process, e.g.:
@@ -971,63 +972,63 @@ On the other side we will now read the entire image and try to calculate several
 #include "libflat.h"
 
 struct point {
-	double x;
-	double y;
-	unsigned n;
-	struct point** other;
+    double x;
+    double y;
+    unsigned n;
+    struct point** other;
 };
 
 struct figure {
-	const char* name;
-	unsigned n;
-	struct point* points;
+    const char* name;
+    unsigned n;
+    struct point* points;
 };
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r");
-	assert(in);
-	unflatten_init();
+    FILE* in = fopen("/tmp/memory.img", "r");
+    assert(in);
+    unflatten_init();
 
-	assert(unflatten_read(in) == 0);
+    assert(unflatten_read(in) == 0);
 
-	const struct figure* circle = ROOT_POINTER_NEXT(const struct figure*);
+    const struct figure* circle = ROOT_POINTER_NEXT(const struct figure*);
 
-	unsigned i, j;
-	double length = 0, circumference = 0;
-	unsigned edge_number = 0;
-	for (i = 0; i < circle->n - 1; ++i) {
-		for (j = i; j < circle->n - 1; ++j) {
-			if (circle->points[i].other[j]) {
+    unsigned i, j;
+    double length = 0, circumference = 0;
+    unsigned edge_number = 0;
+    for (i = 0; i < circle->n - 1; ++i) {
+        for (j = i; j < circle->n - 1; ++j) {
+            if (circle->points[i].other[j]) {
 
-				double path_len = sqrt(  pow(circle->points[i].x-circle->points[i].other[j]->x,2) +
-						pow(circle->points[i].y-circle->points[i].other[j]->y,2) );
-				length += path_len;
+                double path_len = sqrt(  pow(circle->points[i].x-circle->points[i].other[j]->x,2) +
+                        pow(circle->points[i].y-circle->points[i].other[j]->y,2) );
+                length += path_len;
 
-				if (j == i)
-					circumference += path_len;
-				if ((i == 0) && (j == circle->n - 2))
-					circumference += path_len;
+                if (j == i)
+                    circumference += path_len;
+                if ((i == 0) && (j == circle->n - 2))
+                    circumference += path_len;
 
-				unsigned u;
-				for (u = 0; u < circle->n - 1; ++u) {
-					if (circle->points[i].other[j]->other[u] == &circle->points[i]) {
-						circle->points[i].other[j]->other[u] = 0;
-					}
-				}
-				edge_number++;
-			}
-		}
-	}
+                unsigned u;
+                for (u = 0; u < circle->n - 1; ++u) {
+                    if (circle->points[i].other[j]->other[u] == &circle->points[i]) {
+                        circle->points[i].other[j]->other[u] = 0;
+                    }
+                }
+                edge_number++;
+            }
+        }
+    }
 
-	printf("Number of edges/diagonals: %u\n", edge_number);
-	printf("Sum of lengths of edges/diagonals: %.17f\n", length);
-	printf("Half of the circumference: %.17f\n", circumference / 2);
+    printf("Number of edges/diagonals: %u\n", edge_number);
+    printf("Sum of lengths of edges/diagonals: %.17f\n", length);
+    printf("Half of the circumference: %.17f\n", circumference / 2);
 
-	unflatten_fini();
-	fclose(in);
+    unflatten_fini();
+    fclose(in);
 
-	return 0;
+    return 0;
 }
 
 
@@ -1058,3 +1059,759 @@ $ examples/circular-out
 ------------------------------------------------
 
 As showed it the example above unflattening depends mostly on the disk image read time and any further potential optimizations would need be focused on that part.
+
+@ Implementation details
+
+Libflat works by making copy of the process memory for indicated variables and structures. There are three main data structures fundamental to the Libflat operation, i.e.:
+- interval tree that holds information about fragments of memory image currently being flattened (implemented by the struct interval_tree_node structure);
+- double linked list of binary data blocks that holds fragments of memory image currently being flattened (implemented by the structure struct blstream);
+- red-black tree of fix-up information elements that hold information about parts of memory that need to be fixed (linked) after reading-in the memory image.
+
+Consider the following example:
+
+#include <stdio.h>
+#include <assert.h>
+#include <limits.h>
+#include "libflat.h"
+
+struct internal_type {
+    int u:4;
+    char c;
+};
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(internal_type);
+
+struct type {
+    const char* name;
+    unsigned long v;
+    struct type* next;
+    struct internal_type* internal[4];
+};
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(type,
+    AGGREGATE_FLATTEN_STRING(name);
+    AGGREGATE_FLATTEN_STRUCT(type,next);
+    FOREACH_POINTER(struct internal_type*,p,ATTR(internal),4,
+        FLATTEN_STRUCT(internal_type,p);
+    );
+);
+
+int main(void) {
+
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
+
+    char* st[] = {
+        "string0",
+        "string1",
+        "string2",
+        0
+    };
+
+    static struct internal_type u = { .u=1, .c='#' };
+    static struct internal_type w = { .u=2, .c='@' };
+
+    struct type* alloc_type = calloc(1,sizeof(struct type));
+        alloc_type->name = st[2]+2;
+        alloc_type->next = alloc_type;
+        alloc_type->internal[0] = &u;
+        alloc_type->internal[1] = &w;
+
+    struct type type_arr[2] = {
+            { .name="type1", .v=UINT_MAX, &type_arr[1], {&u,&u,0,0}  },
+            {  st[1], .v=0, alloc_type, {0} }
+    };
+
+    struct type* root_ptr = &type_arr[0];
+
+    FOR_ROOT_POINTER(root_ptr,
+        FLATTEN_STRUCT(type,root_ptr);
+    );
+
+    FOR_ROOT_POINTER(st,
+        FOREACH_POINTER(const char*,s,st,ptrarrmemlen((const void* const*)st),
+            FLATTEN_STRING(s);
+        );
+    );
+
+    assert(flatten_write(out) == 0);
+
+    flatten_fini();
+    fclose(out);
+    free(alloc_type);
+
+    return 0;
+}
+
+------------------------------------------------
+$ examples/7-in
+(...)
+------------------------------------------------
+
+Let's draw the original memory image that is about to be serialized. It might look like below.
+
+(automatic storage)
+
+st:         [    0x401a53    ][    0x401a5b    ][    0x401a63    ][ 0 ]
+            ^                 ^                 ^                 ^
+            0x7ffec43881e0    0x7ffec43881e8    0x7ffec43881f0    0x7ffec43881f8
+w:          [ 4B ]
+            ^
+            0x7ffec43881d0
+type_arr:   [ ...  56B  ... ][ ...  56B  ... ]
+            ^                ^
+            0x7ffec4388200   0x7ffec4388238
+
+(allocated storage)
+
+alloc_type: [ ...  56B  ... ]
+            ^
+            0x101e250
+
+(static storage)
+
+st[0]:      ['s'|'t'|'r'|'i'|'n'|'g'|'0'|0]
+            ^
+            0x401a53
+
+st[1]:      ['s'|'t'|'r'|'i'|'n'|'g'|'1'|0]
+            ^
+            0x401a5b
+
+st[2]:      ['s'|'t'|'r'|'i'|'n'|'g'|'2'|0]
+            ^
+            0x401a63
+
+u:          [ 4B ]
+            ^
+            0x6030f8
+
+type_arr[0].name:   ['t'|'y'|'p'|'e'|'1'|0]
+                    ^
+                    0x401a6b
+
+
+First item that goes through flattening is the structure pointed by "root_ptr" (&type_arr[0]). This happens in the macro:
+
+FLATTEN_STRUCT(type,root_ptr);
+
+If we expand this macro we might see the following code:
+
+struct flatten_pointer* __fptr = make_flatten_pointer(0, 0);
+if (root_ptr) {
+    fixup_set_insert(__fptr->node, __fptr->offset, flatten_struct_type((root_ptr)));
+}
+free(__fptr);
+
+The function "flatten_struct_type" is defined by the FUNCTION_DEFINE_FLATTEN_STRUCT(type,...) macro and takes the pointer to "struct type" that is about to be flattened as a parameter. The first thing it does is to create new interval fragment in the memory interval tree that corresponds to this structure location:
+
+[0x7ffec4388200:0x7ffec4388237] => [ 56B ]
+^                                  ^
+0x101e2b0                          0x101e2f0
+
+This interval is described by "struct interval_tree_node" structure, specifically by its "start" and "last" fields. Furthermore it also holds pointer to the underlying data (the copied contents from the original structure location) through "struct blstream" instance. 
+
+
+In the next step it recursively calls all flattening functions defined as recipes for flattening this structure internal storage (e.g. memory pointed to by this structure internal pointers). In our case the first recursive call is AGGREGATE_FLATTEN_STRING(name). Expanding it again we have:
+
+if (_ptr->name) {
+    fixup_set_insert(__node, offsetof(struct type,name), flatten_plain_type(_ptr->name, strmemlen(_ptr->name)));
+}
+
+"_ptr" now points to the original structure;
+"__node" is the newly created interval for the original structure (described above).
+
+"flatten_plain_type" does similar thing as "flatten_struct_type" with the difference that it can take arbitrary memory block of specified size (and will not call any functions recursively as the content of string does not normally contain pointers to other memory regions). In our case we have string "type1" of total size 6 therefore new memory fragment of size 6 is created (we have now two memory fragments):
+
+[0x7ffec4388200:0x7ffec4388237] => [ 56B ]
+[0x401a6b:0x401a70] => [ 6B ]
+^                      ^
+0x101e360              0x101e3a0
+
+This process continues recursively for all recipes embedded into structure flattening recipes (and pointer flattening recipes, i.e. FOREACH_POINTER):
+
+AGGREGATE_FLATTEN_STRUCT(type,next);
+FOREACH_POINTER(struct internal_type*,p,ATTR(internal),4,
+    FLATTEN_STRUCT(internal_type,p);
+);
+
+Each call creates another interval fragment of original memory (and corresponding copied memory data block). If memory fragment already exists (or partially exists) it is ignored (or another memory fragment that fills the remaining memory is created). For example flattening stage in our example looks like below (you can always check how flattening stage operates by invoking "flatten_set_debug_flag(1)" before the actual serialization):
+
+(Executed function)                                     (function argument)       (created interval)
+FOR_ROOT_POINTER(root_ptr)
+  FLATTEN_STRUCT(type,root_ptr)                         {root_ptr}                [0x7ffec4388200:0x7ffec4388237] => [ 56B ]
+    AGGREGATE_FLATTEN_STRING(name)                      {name: "type1"}           [0x401a6b:0x401a70] => [ 6B ]
+    AGGREGATE_FLATTEN_STRUCT(type,next)                 {next: &type_arr[1]}      [0x7ffec4388238:0x7ffec438826f] => [ 56B ]
+      AGGREGATE_FLATTEN_STRING(name)                    {name: st[1]}             [0x401a5b:0x401a62] => [ 8B ]
+      AGGREGATE_FLATTEN_STRUCT(type,next)               {alloc_type}              [0x101e250:0x101e287] => [ 56B ]
+        AGGREGATE_FLATTEN_STRING(name)                  {st[2]+2}                 [0x401a65:0x401a6a] => [ 6B ]
+        AGGREGATE_FLATTEN_STRUCT(type,next)             {alloc_type}              <EXISTS>
+        FOREACH_POINTER(struct internal_type*,p,
+                                ((_ptr)->internal),4)
+          FLATTEN_STRUCT(internal_type,p)               {&u}                      [0x6030f8:0x6030fb] => [ 4B ]
+          FLATTEN_STRUCT(internal_type,p)               {&w}                      [0x7ffec43881d0:0x7ffec43881d3] => [ 4B ]
+          FLATTEN_STRUCT(internal_type,p)               {0}                       <NULL>
+          FLATTEN_STRUCT(internal_type,p)               {0}                       <NULL>
+      FOREACH_POINTER(struct internal_type*,p,
+                              ((_ptr)->internal),4)
+        FLATTEN_STRUCT(internal_type,p)                 {0}                       <NULL>
+        FLATTEN_STRUCT(internal_type,p)                 {0}                       <NULL>
+        FLATTEN_STRUCT(internal_type,p)                 {0}                       <NULL>
+        FLATTEN_STRUCT(internal_type,p)                 {0}                       <NULL>
+    FOREACH_POINTER(struct internal_type*,p,
+                            ((_ptr)->internal),4)
+      FLATTEN_STRUCT(internal_type,p)                   {&u}                      <EXISTS>
+      FLATTEN_STRUCT(internal_type,p)                   {&w}                      <EXISTS>
+      FLATTEN_STRUCT(internal_type,p)                   {0}                       <NULL>
+      FLATTEN_STRUCT(internal_type,p)                   {0}                       <NULL>
+
+FOR_ROOT_POINTER(st)
+  FOREACH_POINTER(const char*,s,st,
+                ptrarrmemlen((const void* const*)st))   {&st[0]}                  [0x7ffec43881e0:0x7ffec43881e7] => [ 8B ]
+                                                        {&st[1]}                  [0x7ffec43881e8:0x7ffec43881ef] => [ 8B ]
+                                                        {&st[2]}                  [0x7ffec43881f0:0x7ffec43881f7] => [ 8B ]
+                                                        {&st[3]}                  [0x7ffec43881f8:0x7ffec43881ff] => [ 8B ]
+
+    FLATTEN_STRING(s)                                   {st[0]}                   [0x401a53:0x401a5a] => [ 8B ]
+    FLATTEN_STRING(s)                                   {st[1]}                   <EXISTS>
+    FLATTEN_STRING(s)                                   {st[2]}                   [0x401a63:0x401a64] => [ 2B ]
+    FLATTEN_STRING(s)                                   {0}                       <NULL>
+
+You can notice that "alloc_type->name" points inside the string "string2". During serialization of this member only 6B of this string are written:
+
+AGGREGATE_FLATTEN_STRING(name)                  {st[2]+2}                 [0x401a65:0x401a6a] => [ 6B ]
+
+Remaining two bytes are added when the "string2" string is serialized from its beginning (parts of this string already available in memory image are omitted):
+
+FLATTEN_STRING(s)                                   {st[2]}                   [0x401a63:0x401a64] => [ 2B ]
+
+It's worth to notice that function FOREACH_POINTER also dumps the storage of a pointer its creates before making it available for internal recipes as in:
+
+FOREACH_POINTER(const char*,s,st,...)
+
+unless it's already been flattened as in:
+
+FOREACH_POINTER(struct internal_type*,p,...)
+
+which has been flattened as a part of the storage of the encompassing structure type (the pointer itself is a part of the structure storage).
+
+As has been mentioned each interval structure holds pointer ("struct blstream*") to corresponding binary data block of copied memory. All blocks are arranged in doubly linked list (in sorted order by its initial addresses) which makes adding new block anywhere in the list a fast operation (constant time).
+
+Considering the example above before executing:
+
+FLATTEN_STRING(s)                                   {st[2]}                   [0x401a63:0x401a64] => [ 2B ]
+
+the memory data list would look as follows:
+
+[ 8B ]              [ 8B ]              [ 6B ]              [ 6B ]              [ 4B ]              [ 56B ]
+0x101ec60           0x101e540           0x101e6e0           0x101e3a0           0x101e850           0x101e630
+^                   ^                   ^                   ^                   ^                   ^
+[0x401a53:0x401a5a] [0x401a5b:0x401a62] [0x401a65:0x401a6a] [0x401a6b:0x401a70] [0x6030f8:0x6030fb] [0x101e250:0x101e287]
+^                   ^                   ^                   ^                   ^                   ^
+0x101ec20           0x101e500           0x101e6a0           0x101e360           0x101e810           0x101e5f0
+
+
+[ 4B ]                          [ 8B ]                          [ 8B ]                          [ 8B ]                          [ 8B ]
+0x101e940                       0x101ebb0                       0x101ed50                       0x101ee40                       0x101efc0
+^                               ^                               ^                               ^                               ^
+[0x7ffec43881d0:0x7ffec43881d3] [0x7ffec43881e0:0x7ffec43881e7] [0x7ffec43881e8:0x7ffec43881ef] [0x7ffec43881f0:0x7ffec43881f7] [0x7ffec43881f8:0x7ffec43881ff]
+^                               ^                               ^                               ^                               ^
+0x101e900                       0x101eb70                       0x101ed10                       0x101ee00                       0x101ef80
+
+
+[ 56B ]                         [ 56B ]
+0x101e2f0                       0x101e490
+^                               ^
+[0x7ffec4388200:0x7ffec4388237] [0x7ffec4388238:0x7ffec438826f]
+^                               ^
+0x101e2b0                       0x101e450
+
+
+Adding two more bytes with initial address 0x401a63 inserts the data between 2nd and 3rd element in the list:
+
+[ 8B ]              [ 8B ]              [ 2B ]              [ 6B ]              [ 6B ]              [ 4B ]              [ 56B ]
+0x101ec60           0x101e540           0x101eed0           0x101e6e0           0x101e3a0           0x101e850           0x101e630
+^                   ^                   ^                   ^                   ^                   ^                   ^
+[0x401a53:0x401a5a] [0x401a5b:0x401a62] [0x401a63:0x401a64] [0x401a65:0x401a6a] [0x401a6b:0x401a70] [0x6030f8:0x6030fb] [0x101e250:0x101e287] ...
+^                   ^                   ^                   ^                   ^                   ^                   ^
+0x101ec20           0x101e500           0x101ee90           0x101e6a0           0x101e360           0x101e810           0x101e5f0
+
+
+Interval tree structure is implemented on top of the red-black trees (credits to the original Linux kernel developers from where this implementation has been taken). This also makes searching for the given interval a linearithmic operation.
+
+The final data structure used internally is so called fixup set. It's a standard set data structure build on top of red-black tree. Remember that parts of the memory image are linked together through pointers. We have 13 non-zero pointers in the working example above inside our 238B memory image, i.e.:
+
+type_arr[0].name
+type_arr[0].next
+type_arr[0].internal[0]
+type_arr[0].internal[1]
+type_arr[1].name
+type_arr[1].next
+alloc_type->name
+alloc_type->next
+alloc_type->internal[0]
+alloc_type->internal[1]
+st[0]
+st[1]
+st[2]
+
+During saving memory image we need to somehow mark all pointer locations which should be later fixed (new address should be recomputed) after deserialization. To facilitate that we store all pointer locations within memory image in the fixup set. Fixup set is represented by the "fixup_set_node" structure which defines the mapping (one element of a set) as follows:
+
+( {node:offset} => {node:offset} )
+
+Standard memory pointers in most cases are represented by numbers (although C standard does not require that) which are addresses of some memory locations, i.e.
+
+type_arr[0].next : 0x7ffec4388210
+
+Flatten memory representation is composed of the list of memory intervals. Therefore to represent the above pointer in flatten memory image we need to tell which interval holds the pointer storage at which offset within this interval. In the above case the "next" pointer is a part of "struct type" structure which is stored at interval:
+
+[ 56B ]
+0x101e2f0
+^
+[0x7ffec4388200:0x7ffec4388237]
+^
+0x101e2b0
+
+The address of this interval is 0x101e2b0, and "next" pointer is stored at offset 16 within this interval. All this leads to the following flatten pointer representation ("struct flatten_pointer" in the code) that points to the part of flatten memory:
+
+{0x101e2b0:16}
+
+In our case "next" field points to "type_arr[1]" structure which flatten pointer is:
+
+{0x101e450:0}
+
+Finally the mapping which is stored in fixup set (there is one mapping for each original pointer) has the form:
+
+( {0x101e2b0:16} => {0x101e450:0} )
+
+Flatten pointers are inserted in fixup set by the function "fixup_set_insert". Going back to our expanded code from the beginning of this section we have:
+
+if (_ptr->name) {
+    fixup_set_insert(__node, offsetof(struct type,name), flatten_plain_type(_ptr->name, strmemlen(_ptr->name)));
+}
+
+Here we insert the mapping:
+
+( {__node:offsetof(struct type,name)} => (...) )
+
+with the value returned by the flatten_plain_type() function. In other words we might say:
+
+"There is a pointer in the "struct type" structure at offset 0 which points to a given memory interval at given offset (returned by the flattening function); remember that and later after deserialization assign proper address value to this pointer so it will point to the original flattened object."
+
+Root pointers does not have storage which is worked around using zeroed mapping:
+
+( {0:0} => (...) )
+
+And code:
+
+struct flatten_pointer* __fptr = make_flatten_pointer(0, 0);
+if (root_ptr) {
+    fixup_set_insert(__fptr->node, __fptr->offset, flatten_struct_type((root_ptr)));
+}
+
+Zeroed mappings are not added to the fixup set (they are ignored by the "fixup_set_insert" function) as root pointers are handled differently (they are converted to the offset values from the beginnig of the image (position independent counterparts) file and stored additionally in the image header; check "struct root_addrnode" structure and its usage).
+
+The last remaining piece to explain is how libflat prepares all pointers within the image so only one simple fix is required after deserialization. It's already been explained how the memory fixing is done (<LINK>). When flattening phase is finished memory image is fully arranged of interval list with ascending order of original addresses. Next step is to compute the index at which each interval data begins (function "binary_stream_calculate_index"):
+
+
+{0}:[ 8B ]          {8}:[ 8B ]          {16}:[ 2B ]         {18}:[ 6B ]         {24}:[ 6B ]         {30}:[ 4B ]         {34}:[ 56B ]
+0x101ec60           0x101e540           0x101eed0           0x101e6e0           0x101e3a0           0x101e850           0x101e630
+^                   ^                   ^                   ^                   ^                   ^                   ^
+[0x401a53:0x401a5a] [0x401a5b:0x401a62] [0x401a63:0x401a64] [0x401a65:0x401a6a] [0x401a6b:0x401a70] [0x6030f8:0x6030fb] [0x101e250:0x101e287] ...
+^                   ^                   ^                   ^                   ^                   ^                   ^
+0x101ec20           0x101e500           0x101ee90           0x101e6a0           0x101e360           0x101e810           0x101e5f0
+
+
+{90}:[ 4B ]                     {94}:[ 8B ]                     {102}:[ 8B ]                    {110}:[ 8B ]                    {118}:[ 8B ]
+0x101e940                       0x101ebb0                       0x101ed50                       0x101ee40                       0x101efc0
+^                               ^                               ^                               ^                               ^
+[0x7ffec43881d0:0x7ffec43881d3] [0x7ffec43881e0:0x7ffec43881e7] [0x7ffec43881e8:0x7ffec43881ef] [0x7ffec43881f0:0x7ffec43881f7] [0x7ffec43881f8:0x7ffec43881ff]
+^                               ^                               ^                               ^                               ^
+0x101e900                       0x101eb70                       0x101ed10                       0x101ee00                       0x101ef80
+
+
+{126}:[ 56B ]                   {182}:[ 56B ]
+0x101e2f0                       0x101e490
+^                               ^
+[0x7ffec4388200:0x7ffec4388237] [0x7ffec4388238:0x7ffec438826f]
+^                               ^
+0x101e2b0                       0x101e450
+
+Now when we look at the mapping in the fixup set:
+
+( {0x101e2b0:16} => {0x101e450:0} )
+
+we notice that the original pointer is located at offset 16 in the interval which data index is 126. This yields the final value 142. Furthermore this pointer points to interval which data index is 182 to the offset 0 (this gives the value 182). All what needs to be now done is to insert new position independent pointer value 182 at offset 142 if the flattened memory image (function "binary_stream_update_pointers"):
+
+[ | | | | ... | 182 | | | ...]
+^     ^       ^
+0     3       142
+
+It is worth to mention that we don't need to be worried about flattening NULL pointers, we just ignore them. NULL pointer has the value 0 which can be preserved between original and flattened memory image and will have the same meaning after deserialization.
+
+For debug purposes it is possible to dump all addresses of internal structures using the "flatten_debug_info()" function. To use the debugging functions include the following declarations into the source code as follows:
+
+void flatten_debug_info();
+void flatten_set_debug_flag(int flag);
+
+@ Limitations
+
+There are several limitations to the current version of libflat which are listed below.
+
+1. Libflat does not support serializing system elements. Examples might be FILE or struct dirent structures. Although it might be possible to write proper recipes for these structures and even flattening would be successfull. However these structures might hold values (like inode numbers, process IDs etc.) that have proper meaning only within the original process boundary. This is a hard limitation and seems impossible to resolve (unless there's anyone who doesn't yet know it's impossible) without adding additional code for restoring system elements after deserialization.
+
+2. Current version of Libflat has limited support for flattening pointer to functions. Although it is possible to flatten the value a pointer to function points to but currently there is no possible to fix it during deserialization (there is no facility that would recognize pointers to functions and save proper fix information to be used later). It can be workaround by adding additional code after deserialization which resets pointer to functions to proper values in the new process context. However it can be burdensome (and in some cases even impossible, like original pointer to functions has been set according to the random program input). One idea is to use dynamic linker functionality, resolve function addresses within main binary or dynamically linked libraries and store resolved symbols. It would work for many cases (and therefore seems practical) however it would support only functions visible for the linker (i.e. support for static functions would be limited, but hey, who passes around static function addresses using pointer to functions? ;)).
+
+3. After deserialization is done freeing or reallocating any pointer that was a part of memory image will invoke undefined behaviour (and very probable SIGSEGV signal or library assertion). This is due to the fact any allocated pointer in the original image is not allocated anymore after deserialization. There is only one allocation for the whole memory image that is about to be read in. Libflat provides two functions that can somehow mitigate this obstacle:
+
+void* libflat_realloc (void* ptr, size_t size);
+void libflat_free (void* ptr);
+
+These two functions check whether the pointer that is freed/reallocated points inside flattened memory region and if this is the case free function does nothing and realloc returns new storage allocated using malloc of a given size (and copied memory content). In case of realloc we don't know how much storage was previously allocated therefore Libflat will try to copy all bytes given by the new size just to be sure (if new size exceeds the length of memory image then all bytes until end of memory image are copied). When the pointer that is freed/reallocated points outside of flattened memory normal standard free/realloc is used. Above two functions should be used instead of original free/realloc (e.g. by the preprocessor definition).
+
+Solution described above yields another problem, i.e. the flattened memory content need to stay persistent in memory even though most of the content (accessible through pointers) might be deallocated and no longer used. Future solutions might track pointers frees/allocations and rebuild memory image when appropriate (that would need to somehow pass the information about the length of allocated storage though).
+
+4. In the current version of Libflat there are some limitations for the structure and pointer overlays that can be flattened. For example structure storage can only be flattened as a whole memory block (any part of the structure flattened from other context will give assertion during structure processing). Same applies for the storage of pointers. Consider the below example:
+
+#include <stdio.h>
+#include <assert.h>
+#include "libflat.h"
+
+struct type {
+    const char* name;
+    unsigned long v;
+};
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(type,
+    AGGREGATE_FLATTEN_STRING(name);
+);
+
+int main(void) {
+
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
+
+    struct type s = {"Some value here",0};
+
+    FOR_ROOT_POINTER((unsigned short*)&s.v,
+        FLATTEN_TYPE(unsigned short,(unsigned short*)&s.v);
+    );
+
+    FOR_ROOT_POINTER(&s,
+        FLATTEN_STRUCT(type,&s);
+    );
+
+    assert(flatten_write(out) == 0);
+
+    flatten_fini();
+    fclose(out);
+
+    return 0;
+}
+
+------------------------------------------------
+$ examples/8-in_a
+8-in_a: examples/8-in_a.c:12: flatten_struct_type: Assertion `__node->start==(uint64_t)_ptr' failed.
+------------------------------------------------
+
+This will fail as part of the structure storage (2 bytes of the "v" field) has already been flattened and structure can only be flattened as a whole.
+
+Similar thing happens for pointers:
+
+#include <stdio.h>
+#include <assert.h>
+#include "libflat.h"
+
+int main(void) {
+
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
+
+    const char* st[2] = {
+            "Some value here",
+            "Other value here",
+    };
+
+    FOR_ROOT_POINTER((unsigned char*)&st[0],
+        FLATTEN_TYPE(unsigned char,(unsigned char*)&st[0]);
+    );
+
+    FOR_ROOT_POINTER(st,
+        FOREACH_POINTER(const char*,s,st,ptrarrmemlen((const void* const*)st),
+            FLATTEN_STRING(s);
+        );
+    );
+
+    assert(flatten_write(out) == 0);
+
+    flatten_fini();
+    fclose(out);
+
+    return 0;
+}
+
+------------------------------------------------
+$ examples/8-in_b
+8-in_b: libflat.c:406: get_pointer_node: Assertion `node->last>=p+sizeof(void*)-1 && "Invalid pointer address"' failed.
+------------------------------------------------
+
+Here 1 byte of the st[0] pointer has already been flattened and therefore flattening the whole pointer fails.
+
+Such situations (using part of structure/pointer storage in other contexts) are rare (and some might be considered bad practice) however they can happen (and sometimes there might be very good rationale to why to use them) therefore should be supported by Libflat seamlessly. There is actually no point why they wouldn't be supported (this derelict stems from initial library design and is no longer applicable) and will be supported in future releases of Libflat.
+
+
+5. Libflat makes a copy of the original memory (i.e. bitwise copy) therefore flattening structures copies all the structure padding as well. This leads to the fact that after deserialization structure padding might be initialized differently as it would be if the structure had been initialized by compiler. This is reported by the Valgrind, however it's hard to imagine any other real-life consequences of this fact.
+
+@ Toubleshooting
+
+What to do when flattening fails? First thing to do is to check whether your use case falls into Libflat limitations (<LINK>). If not there are more possible scenarios that breaks the plateau.
+
+Consider the following example:
+
+#include <stdio.h>
+#include <assert.h>
+#include "libflat.h"
+
+struct internal_type {
+    int u:4;
+    char c;
+};
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(internal_type);
+
+struct type {
+    const char* name;
+    unsigned long v;
+    struct type* next;
+    struct internal_type* internal[4];
+};
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(type,
+    AGGREGATE_FLATTEN_STRING(name);
+    AGGREGATE_FLATTEN_STRUCT(type,next);
+    AGGREGATE_FLATTEN_TYPE_ARRAY(struct internal_type*,internal,4);
+    FOREACH_POINTER(struct internal_type*,p,ATTR(internal),4,
+        FLATTEN_STRUCT(internal_type,p);
+    );
+);
+
+int main(void) {
+
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
+
+    static struct internal_type u = { .u=1, .c='#' };
+
+    struct type type_arr = { .name="type1", .v=666, &type_arr, {&u,&u,0,0}  };
+
+    FOR_ROOT_POINTER(&type_arr,
+        FLATTEN_STRUCT(type,&type_arr);
+    );
+
+    assert(flatten_write(out) == 0);
+
+    flatten_fini();
+    fclose(out);
+
+    return 0;
+}
+
+
+After running it you should get the following mysterious assertion:
+
+------------------------------------------------
+$ examples/8-in_c
+8-in_c: libflat.c:257: fixup_set_insert: Assertion `(inode->ptr->node->start+inode->ptr->offset)==(ptr->node->start+ptr->offset) && "Multiple pointer mismatch for the same storage"' failed.
+------------------------------------------------
+
+This tells us that we have just flattened some memory location through a pointer but previously we flattened different memory location through the same pointer (i.e. the same pointer points to two different locations at the same time). How it's possible? Take a look more closely at the flattening recipes:
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(type,
+    AGGREGATE_FLATTEN_STRING(name);
+    AGGREGATE_FLATTEN_STRUCT(type,next);
+    AGGREGATE_FLATTEN_TYPE_ARRAY(struct internal_type*,internal,4);
+    FOREACH_POINTER(struct internal_type*,p,ATTR(internal),4,
+        FLATTEN_STRUCT(internal_type,p);
+    );
+);
+
+Here we flatten whole structure "struct type" storage and its internal fields, i.e. "name", "next", "internal" pointer array and all the stuff the pointers from "internal" field points to. So where is the problem? It's actually quite difficult to grasp. The following line:
+
+AGGREGATE_FLATTEN_TYPE_ARRAY(struct internal_type*,internal,4);
+
+flattens storage of 4 pointers from the "internal" array but it's already been flattened when the structure storage got dumped! In other words, the "internal" table is a part of structure storage (it is embedded inside the structure, pointer by pointer) and the above line is superfluous. To see the exact cause notice that "internal" expands to the type "pointer to struct internal*", storage for our 4 pointers has already been flattened (when encompassing structure storage has been flattened) but Libflat remembers that at offset corresponding to "internal" field we have a pointer to the internal structure storage (this is incorrect!). Later on when we flatten first "struct internal_type" Libflat got another pointer at the same offset which points to different location (static frame where "u" has been defined). After removing the superfluous line all works as expected:
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(type,
+    AGGREGATE_FLATTEN_STRING(name);
+    AGGREGATE_FLATTEN_STRUCT(type,next);
+    FOREACH_POINTER(struct internal_type*,p,ATTR(internal),4,
+        FLATTEN_STRUCT(internal_type,p);
+    );
+);
+
+Another pitfall is to use root pointer which doesn't point to any location within flattened memory image:
+
+#include <stdio.h>
+#include <assert.h>
+#include "libflat.h"
+
+int main(void) {
+
+    FILE* out = fopen("/tmp/memory.img", "w");
+    assert(out);
+    flatten_init();
+
+    const char* s = "Very valuable data";
+
+    FOR_ROOT_POINTER(&s,
+        FLATTEN_STRING(s);
+    );
+
+    assert(flatten_write(out) == 0);
+
+    flatten_fini();
+    fclose(out);
+
+    return 0;
+}
+
+------------------------------------------------
+$ examples/8-in_d
+8-in_d: libflat.c:530: flatten_write: Assertion `node!=0' failed.
+------------------------------------------------
+
+Here the only actually flattened memory region is for the string storage area (19 bytes). Therefore root pointer which points to the address of first byte of the string is not included in the final memory image. To fix it replace flattening recipe by:
+
+FOR_ROOT_POINTER(s,
+    FLATTEN_STRING(s);
+);
+
+or include the pointer address in the flattened memory image:
+
+FOR_ROOT_POINTER(&s,
+    FOR_POINTER(const char*,v,&s,
+        FLATTEN_STRING(v);
+    );
+);
+
+@ Contribution
+
+There are number of ideas how to improve the Libflat. Some ideas are listed below.
+
+1. Currently Libflat works on Linux and Windows (x86/x64 architecture). Port to ARM/ARM64 (Android) would be very appreciated.
+2. All Libflat examples has been tested on Linux. It would be appreciated to prepare Visual Studio project and test all examples on Windows.
+3. No tests has been done with C unions and adding such tests would be appreciated.
+4. Fixing limited structure/pointer overlays (see limitations/4).
+5. Adding root pointer to flattened memory image if not present (see troubleshooting).
+6. Currently Libflat doesn't support flattening pointers to functions. This functionality would be implemented using dynamic linker capabilities (dladdr on Linux and Windows equivalent) by translating function addresses to corresponding symbols and storing it in the final memory image.
+7. Currently Libflat API only allows to save entire memory image to single file. Consider enhancing the API to allow for creating and returning multiple flattened memory images for selected recipes.
+8. Currently there is no support for C++ classes (only C++ POD types can be flattened). Design and implementation of flattening and reconstructing C++ classes would be appreciated (unfortunately it seems impossible to do this in C++ standard way and taking advantage of platform/compilator dependent functionalities would probably be needed).
+9. Enable proper error handling instead of rough assertions.
+10. Overcoming problems with free/reallocations in the unflattened memory image (see limitations/3).
+11. More tests, error reports and bug fixes.
+
+@ Final word
+
+To conclude all thoughts let's get back to the serializing GNU Make internal data structures. The question was whether we can omit the parsing phase at all and read in the whole memory content ready for going (or almost ready)? First version of Libflat was specifically created for that task. The main data structure of GNU Make internals is the "struct file" structure. It's opaque structure that branches and links with other "struct file" structues into the dependency graph. Other important structures are "struct hash_table" and "struct rule" among others.
+
+The following recipes has been created for the internal Make structures (three most complicated data structures has been selected here):
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(file,
+    AGGREGATE_FLATTEN_STRING(name);
+    AGGREGATE_FLATTEN_STRING(hname);
+    AGGREGATE_FLATTEN_STRING(vpath);
+    AGGREGATE_FLATTEN_STRUCT(dep,deps);
+    AGGREGATE_FLATTEN_STRUCT(commands,cmds);
+    AGGREGATE_FLATTEN_STRING(stem);
+    AGGREGATE_FLATTEN_STRUCT(dep,also_make);
+    AGGREGATE_FLATTEN_STRUCT(file,prev);
+    AGGREGATE_FLATTEN_STRUCT(file,last);
+    AGGREGATE_FLATTEN_STRUCT(file,renamed);
+    AGGREGATE_FLATTEN_STRUCT(variable_set_list,variables);
+    AGGREGATE_FLATTEN_STRUCT(variable_set_list,pat_variables);
+    AGGREGATE_FLATTEN_STRUCT(file,parent);
+    AGGREGATE_FLATTEN_STRUCT(file,double_colon);
+);
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(hash_table,
+    AGGREGATE_FLATTEN_TYPE_ARRAY(void*,ht_vec,ATTR(ht_size));
+    FOREACH_POINTER(const void*,p,ATTR(ht_vec),ATTR(ht_size),
+        if (!HASH_VACANT (p)) FLATTEN_STRUCT(file,p);
+    );
+);
+
+FUNCTION_DEFINE_FLATTEN_STRUCT(rule,
+    AGGREGATE_FLATTEN_STRUCT(rule,next);
+    AGGREGATE_FLATTEN_TYPE_ARRAY(const char*,targets,ATTR(num));
+    FOREACH_POINTER(const char*,p,ATTR(targets),ATTR(num),
+        FLATTEN_STRING(p);
+    );
+    AGGREGATE_FLATTEN_TYPE_ARRAY(unsigned int,lens,ATTR(num));
+    AGGREGATE_FLATTEN_TYPE_ARRAY(const char*,suffixes,ATTR(num));
+    FOREACH_POINTER(const char*,p,ATTR(suffixes),ATTR(num),
+        FLATTEN_STRING(p);
+    );
+    AGGREGATE_FLATTEN_STRUCT(dep,deps);
+    AGGREGATE_FLATTEN_STRUCT(commands,cmds);
+);
+
+After other amendments (pointer for functions for hash tables needed to be re-initialized among other things) internal GNU Make image has been created and saved:
+
+------------------------------------------------
+$ time make -M.cachefull
+============================================
+PLATFORM_VERSION_CODENAME=REL
+PLATFORM_VERSION=6.0
+TARGET_PRODUCT=aosp_arm64
+TARGET_BUILD_VARIANT=eng
+TARGET_BUILD_TYPE=release
+TARGET_BUILD_APPS=
+TARGET_ARCH=arm64
+TARGET_ARCH_VARIANT=armv8-a
+TARGET_CPU_VARIANT=generic
+TARGET_2ND_ARCH=arm
+TARGET_2ND_ARCH_VARIANT=armv7-a-neon
+TARGET_2ND_CPU_VARIANT=cortex-a15
+HOST_ARCH=x86_64
+HOST_OS=linux
+HOST_OS_EXTRA=Linux-3.13.0-58-generic-x86_64-with-Ubuntu-14.04-trusty
+HOST_BUILD_TYPE=release
+BUILD_ID=MRA58K
+OUT_DIR=out
+============================================
+including ./abi/cpp/Android.mk ...
+including ./art/Android.mk ...
+including ./bionic/Android.mk ...
+...
+including ./system/security/softkeymaster/Android.mk ...
+including ./system/vold/Android.mk ...
+including ./tools/external/fat32lib/Android.mk ...
+# Flattening done. Summary:
+  Memory size: 467750822 bytes
+  Linked 13075800 pointers
+  Written 572357358 bytes
+
+real    1m26.891s
+user    0m45.526s
+sys 0m39.327s
+------------------------------------------------
+
+Finally reading-in internal GNU Make data structures with warm caches and fully built binaries (incremental build without changes) concludes the journey:
+
+------------------------------------------------
+$ time make -c.cachefull
+# Unflattening done. Summary:
+  Image read time: 0,101719s
+  Fixing memory time: 0,033349s
+  Total time: 0,135113s
+  Total bytes read: 572357358
+make: Nothing to be done for 'droid'.
+
+real    0m0.662s
+user    0m0.465s
+sys 0m0.200s
+------------------------------------------------
