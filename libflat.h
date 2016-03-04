@@ -64,6 +64,8 @@
 #include <errno.h>
 #include <string.h>
 
+static const volatile char version[] = "0.1";
+
 /* Main interface functions */
 
 void flatten_init();
