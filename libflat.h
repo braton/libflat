@@ -2,22 +2,33 @@
 #define __LIBFLAT_H__
 
 /*
-  Library for fast serialization of C/C++ structures
-  (C) 2015  Bartosz Zator <braton@gmail.com>
+	Copyright (c) 2015-2016 Bartosz Zator
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
+	This program is free software. Unless otherwise stated below,
+	the files in this project may be distributed under the terms of
+	the GNU General Public License version 2.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+	Red-black tree and interval tree implementation was taken
+	from the Linux kernel source tree and therefore might be distributed
+	under GNU General Public License v.2 or any later version.
+	Red Black Trees:
+	(C) 1999  Andrea Arcangeli <andrea@suse.de>
+	(C) 2002  David Woodhouse <dwmw2@infradead.org>
+	(C) 2012  Michel Lespinasse <walken@google.com>
+	Interval Trees:
+	(C) 2012  Michel Lespinasse <walken@google.com>
+
+	gettimeofday implementation for Windows was taken
+	from the PostgreSQL implementation:
+	Copyright (c) 2003 SRA, Inc.
+	Copyright (c) 2003 SKC, Inc.
+	and might be distributed under the license stated thereof.
+	Please see wintime.h file for details.
 
   The following macros are available to describe how to flatten types:
 
@@ -41,7 +52,7 @@
 	FUNCTION_DEFINE_FLATTEN_STRUCT(type,code)
 	FUNCTION_DECLARE_FLATTEN_STRUCT(type)
 
-  See README and docs for more details.
+  See README.md and DOCS for more details.
 */
 
 #include <stdio.h>

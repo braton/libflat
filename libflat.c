@@ -362,7 +362,7 @@ void interval_tree_print(struct rb_root *root) {
 	size_t total_size=0;
 	while(p) {
 		struct interval_tree_node* node = (struct interval_tree_node*)p;
-		printf("[%p:%p](%zu){%p}\n",(void*)node->start,(void*)node->last,node->last-node->start+1,(void*)node->storage);
+		printf("(%p)[%p:%p](%zu){%p}\n",node,(void*)node->start,(void*)node->last,node->last-node->start+1,(void*)node->storage);
 		total_size+=node->last-node->start+1;
 		p = rb_next(p);
 	};
