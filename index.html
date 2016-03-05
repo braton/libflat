@@ -874,7 +874,7 @@ sizeof(struct figure): 16
 
 <p>In the final example we will try to pressure the library a little bit and notice how it responds to more demanding job. Let's modify the previous example and try to approximate a circle. To avoid stack overflow (in the previous example walking through the edges during flattening stage required one recursive call deeper per each edge) we will modify the structures slightly. <code>struct figure</code> will hold a table of all points and each point will hold a pointer to each other point in the polygon. We will build regular polygon with points around the circle circumference of radius 1. When number of points is 8 it would look something like below:<br></p>
 
-<p><img src="https://github.com/braton/libflat/blob/gh-pages/images/figure_1.png" alt="Figure 1."></p>
+<p><img src="https://github.com/braton/libflat/blob/gh-pages/images/figure_1.png" alt="Figure 1"></p>
 
 <p>We will describe the flattening recipe for each structure as in the full example below:<br></p>
 
@@ -1489,23 +1489,19 @@ void flatten_set_debug_flag(int flag);
 
 <p>There are several limitations to the current version of libflat which are listed below.<br></p>
 
-<ol>
-<li><p>Libflat does not support serializing system elements. Examples might be <code>FILE</code> or <code>struct dirent</code> structures. Although it might be possible to write proper recipes for these structures and even flattening would be successfull. However these structures might hold values (like inode numbers, process IDs etc.) that have proper meaning only within the original process boundary. This is a hard limitation and seems impossible to resolve (unless there's anyone who doesn't yet know it's impossible) without adding additional code for restoring system elements after deserialization.<br></p></li>
-<li><p>Current version of Libflat has limited support for flattening pointer to functions. Although it is possible to flatten the value a pointer to function points to but currently there is no possible to fix it during deserialization (there is no facility that would recognize pointers to functions and save proper fix information to be used later). It can be workaround by adding additional code after deserialization which resets pointer to functions to proper values in the new process context. However it can be burdensome (and in some cases even impossible, like original pointer to functions has been set according to the random program input). One idea is to use dynamic linker functionality, resolve function addresses within main binary or dynamically linked libraries and store resolved symbols. It would work for many cases (and therefore seems practical) however it would support only functions visible for the linker (i.e. support for static functions would be limited, but hey, who passes around static function addresses using pointer to functions? ;)).<br></p></li>
-<li><p>After deserialization is done freeing or reallocating any pointer that was a part of memory image will invoke undefined behaviour (and very probable SIGSEGV signal or library assertion). This is due to the fact any allocated pointer in the original image is not allocated anymore after deserialization. There is only one allocation for the whole memory image that is about to be read in. Libflat provides two functions that can somehow mitigate this obstacle:<br></p></li>
-</ol>
+<p><strong>1.</strong>  Libflat does not support serializing system elements. Examples might be <code>FILE</code> or <code>struct dirent</code> structures. Although it might be possible to write proper recipes for these structures and even flattening would be successfull. However these structures might hold values (like inode numbers, process IDs etc.) that have proper meaning only within the original process boundary. This is a hard limitation and seems impossible to resolve (unless there's anyone who doesn't yet know it's impossible) without adding additional code for restoring system elements after deserialization.<br></p>
+
+<p><strong>2.</strong>  Current version of Libflat has limited support for flattening pointer to functions. Although it is possible to flatten the value a pointer to function points to but currently there is no possible to fix it during deserialization (there is no facility that would recognize pointers to functions and save proper fix information to be used later). It can be workaround by adding additional code after deserialization which resets pointer to functions to proper values in the new process context. However it can be burdensome (and in some cases even impossible, like original pointer to functions has been set according to the random program input). One idea is to use dynamic linker functionality, resolve function addresses within main binary or dynamically linked libraries and store resolved symbols. It would work for many cases (and therefore seems practical) however it would support only functions visible for the linker (i.e. support for static functions would be limited, but hey, who passes around static function addresses using pointer to functions? ;)).<br></p>
+
+<p><strong>3.</strong>  After deserialization is done freeing or reallocating any pointer that was a part of memory image will invoke undefined behaviour (and very probable SIGSEGV signal or library assertion). This is due to the fact any allocated pointer in the original image is not allocated anymore after deserialization. There is only one allocation for the whole memory image that is about to be read in. Libflat provides two functions that can somehow mitigate this obstacle:<br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-k">void</span>* <span class="pl-en">libflat_realloc</span> (<span class="pl-k">void</span>* ptr, <span class="pl-c1">size_t</span> size);
 <span class="pl-k">void</span> <span class="pl-en">libflat_free</span> (<span class="pl-k">void</span>* ptr);</pre></div>
 
-<p>These two functions check whether the pointer that is freed/reallocated points inside flattened memory region and if this is the case free function does nothing and realloc returns new storage allocated using malloc of a given size (and copied memory content). In case of realloc we don't know how much storage was previously allocated therefore Libflat will try to copy all bytes given by the new size just to be sure (if new size exceeds the length of memory image then all bytes until end of memory image are copied). When the pointer that is freed/reallocated points outside of flattened memory normal standard free/realloc is used. Above two functions should be used instead of original free/realloc (e.g. by the preprocessor definition).<br></p>
+<p>These two functions check whether the pointer that is freed/reallocated points inside flattened memory region and if this is the case free function does nothing and realloc returns new storage allocated using malloc of a given size (and copied memory content). In case of realloc we don't know how much storage was previously allocated therefore Libflat will try to copy all bytes given by the new size just to be sure (if new size exceeds the length of memory image then all bytes until end of memory image are copied). When the pointer that is freed/reallocated points outside of flattened memory normal standard free/realloc is used. Above two functions should be used instead of original free/realloc (e.g. by the preprocessor definition).<br>
+Solution described above yields another problem, i.e. the flattened memory content need to stay persistent in memory even though most of the content (accessible through pointers) might be deallocated and no longer used. Future solutions might track pointers frees/allocations and rebuild memory image when appropriate (that would need to somehow pass the information about the length of allocated storage though).<br></p>
 
-<p>Solution described above yields another problem, i.e. the flattened memory content need to stay persistent in memory even though most of the content (accessible through pointers) might be deallocated and no longer used. Future solutions might track pointers frees/allocations and rebuild memory image when appropriate (that would need to somehow pass the information about the length of allocated storage though).<br></p>
-
-<ol>
-<li>In the current version of Libflat there are some limitations for the structure and pointer overlays that can be flattened. For example structure storage can only be flattened as a whole memory block (any part of the structure flattened from other context will give assertion during structure processing). Same applies for the storage of pointers. Consider the below example:<br>
-</li>
-</ol>
+<p><strong>4.</strong>  <a name="limit4"></a>In the current version of Libflat there are some limitations for the structure and pointer overlays that can be flattened. For example structure storage can only be flattened as a whole memory block (any part of the structure flattened from other context will give assertion during structure processing). Same applies for the storage of pointers. Consider the below example:<br></p>
 
 <div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
 #<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
@@ -1548,9 +1544,8 @@ void flatten_set_debug_flag(int flag);
 8-in_a: examples/8-in_a.c:12: flatten_struct_type: Assertion `__node-&gt;start==(uint64_t)_ptr' failed.
 </code></pre>
 
-<p>This will fail as part of the structure storage (2 bytes of the <code>v</code> field) has already been flattened and structure can only be flattened as a whole.<br></p>
-
-<p>Similar thing happens for pointers:<br></p>
+<p>This will fail as part of the structure storage (2 bytes of the <code>v</code> field) has already been flattened and structure can only be flattened as a whole.<br>
+Similar thing happens for pointers:<br></p>
 
 <div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
 #<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
@@ -1593,10 +1588,7 @@ void flatten_set_debug_flag(int flag);
 
 <p>Such situations (using part of structure/pointer storage in other contexts) are rare (and some might be considered bad practice) however they can happen (and sometimes there might be very good rationale to why to use them) therefore should be supported by Libflat seamlessly. There is actually no point why they wouldn't be supported (this derelict stems from initial library design and is no longer applicable) and will be supported in future releases of Libflat.<br></p>
 
-<ol>
-<li>Libflat makes a copy of the original memory (i.e. bitwise copy) therefore flattening structures copies all the structure padding as well. This leads to the fact that after deserialization structure padding might be initialized differently as it would be if the structure had been initialized by compiler. This is reported by the Valgrind, however it's hard to imagine any other real-life consequences of this fact.<br>
-</li>
-</ol>
+<p><strong>5.</strong>  Libflat makes a copy of the original memory (i.e. bitwise copy) therefore flattening structures copies all the structure padding as well. This leads to the fact that after deserialization structure padding might be initialized differently as it would be if the structure had been initialized by compiler. This is reported by the Valgrind, however it's hard to imagine any other real-life consequences of this fact.<br></p>
 
 <h2>
 <a id="toubleshooting" class="anchor" href="#toubleshooting" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Toubleshooting</h2>
@@ -1741,7 +1733,7 @@ void flatten_set_debug_flag(int flag);
 </li>
 <li>No tests has been done with C unions and adding such tests would be appreciated.<br>
 </li>
-<li>Fixing limited structure/pointer overlays (see limitations/4).<br>
+<li>Fixing limited structure/pointer overlays (see: <a href="#limit4">limitations/4</a>).<br>
 </li>
 <li>Adding root pointer to flattened memory image if not present (see troubleshooting).<br>
 </li>
