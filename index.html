@@ -19,17 +19,43 @@
     </section>
 
     <section class="main-content">
-      <h2>
-<a id="table-of-content" class="anchor" href="#table-of-content" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Table of content</h2>
+      <h1>
+<a id="table-of-content" class="anchor" href="#table-of-content" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Table of content</h1>
 
-<p>|-------------------------|------------------------------------------|
-|<a href="#intro">Introduction</a> | What is Libflat and why to use it|
-|<a href="#howworks">How Libflat works</a> | Gentle introduction to Libflat operation |
-|<a href="#details">Implementation details</a> | More details for interested hackers |
-|<a href="#limit">Limitations</a> | What you can't do right now (but hope to change in the future) |
-|<a href="#trouble">Troubleshooting</a> | Check here in case of problems using Libflat | 
-|<a href="#contribute">Contribution</a> | Ideas for future improvements | 
-|<a href="#final">Final word</a> | Libflat performance in real-life problems | </p>
+<table>
+<thead>
+<tr>
+<th><a href="#intro">Introduction</a></th>
+<th>What is Libflat and why to use it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#howworks">How Libflat works</a></td>
+<td>Gentle introduction to Libflat operation</td>
+</tr>
+<tr>
+<td><a href="#details">Implementation details</a></td>
+<td>More details for interested hackers</td>
+</tr>
+<tr>
+<td><a href="#limit">Limitations</a></td>
+<td>What you can't do right now (but hope to change in the future)</td>
+</tr>
+<tr>
+<td><a href="#trouble">Troubleshooting</a></td>
+<td>Check here in case of problems using Libflat</td>
+</tr>
+<tr>
+<td><a href="#contribute">Contribution</a></td>
+<td>Ideas for future improvements</td>
+</tr>
+<tr>
+<td><a href="#final">Final word</a></td>
+<td>Libflat performance in real-life problems</td>
+</tr>
+</tbody>
+</table>
 
 <h2>
 <a id="introduction" class="anchor" href="#introduction" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="intro"></a>Introduction</h2>
@@ -886,7 +912,7 @@ sizeof(struct figure): 16
 
 <p>In the final example we will try to pressure the library a little bit and notice how it responds to more demanding job. Let's modify the previous example and try to approximate a circle. To avoid stack overflow (in the previous example walking through the edges during flattening stage required one recursive call deeper per each edge) we will modify the structures slightly. <code>struct figure</code> will hold a table of all points and each point will hold a pointer to each other point in the polygon. We will build regular polygon with points around the circle circumference of radius 1. When number of points is 8 it would look something like below:<br></p>
 
-<p><img src="https://github.com/braton/libflat/blob/gh-pages/images/figure_1.png?raw=true" alt="Figure 1"></p>
+<p><img src="https://github.com/braton/libflat/blob/gh-pages/images/figure.png?raw=true" alt="Figure 1"></p>
 
 <p>We will describe the flattening recipe for each structure as in the full example below:<br></p>
 
