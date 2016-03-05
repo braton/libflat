@@ -362,7 +362,7 @@ Let's back to our first example. <br></p>
 The magic answer to the ultimate question of life?: 3.141593
 </code></pre>
 
-<p>In the write output you can now see the line that says:<br></p>
+<p>In the output of the previous example you can see the line that says:<br></p>
 
 <pre><code>Linked 2 pointers
 </code></pre>
@@ -1489,11 +1489,11 @@ st[<span class="pl-c1">2</span>]</pre></div>
 
 <p>It is worth to mention that we don't need to be worried about flattening NULL pointers, we just ignore them. NULL pointer has the value 0 which can be preserved between original and flattened memory image and will have the same meaning after deserialization.<br></p>
 
-<p>For debug purposes it is possible to dump all addresses of internal structures using the <code>flatten_debug_info()</code> function. To use the debugging functions include the following declarations into the source code as follows:<br></p>
+<p>For debug purposes it is possible to dump all addresses of internal structures using the 'flatten_debug_info()' function. To use debugging functions include the following declarations into the source code as follows:<br></p>
 
-<pre><code>void flatten_debug_info();
-void flatten_set_debug_flag(int flag);
-</code></pre>
+<div class="highlight highlight-source-c"><pre><span class="pl-k">void</span> <span class="pl-en">flatten_debug_info</span>();   <span class="pl-c">/* prints internal structure contents */</span>
+<span class="pl-k">void</span> <span class="pl-en">flatten_set_debug_flag</span>(<span class="pl-k">int</span> flag);   <span class="pl-c">/* prints debug information while flattening memory */</span>
+<span class="pl-k">void</span> <span class="pl-en">flatten_debug_memory</span>();   <span class="pl-c">/* prints flattened memory */</span></pre></div>
 
 <h2>
 <a id="limitations" class="anchor" href="#limitations" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="limit"></a>Limitations</h2>
@@ -1504,7 +1504,7 @@ void flatten_set_debug_flag(int flag);
 
 <p><strong>2.</strong>  Current version of Libflat has limited support for flattening pointer to functions. Although it is possible to flatten the value a pointer to function points to but currently there is no possible to fix it during deserialization (there is no facility that would recognize pointers to functions and save proper fix information to be used later). It can be workaround by adding additional code after deserialization which resets pointer to functions to proper values in the new process context. However it can be burdensome (and in some cases even impossible, like original pointer to functions has been set according to the random program input). One idea is to use dynamic linker functionality, resolve function addresses within main binary or dynamically linked libraries and store resolved symbols. It would work for many cases (and therefore seems practical) however it would support only functions visible for the linker (i.e. support for static functions would be limited, but hey, who passes around static function addresses using pointer to functions? ;)).<br></p>
 
-<p><strong>3.</strong>  After deserialization is done freeing or reallocating any pointer that was a part of memory image will invoke undefined behaviour (and very probable SIGSEGV signal or library assertion). This is due to the fact any allocated pointer in the original image is not allocated anymore after deserialization. There is only one allocation for the whole memory image that is about to be read in. Libflat provides two functions that can somehow mitigate this obstacle:<br></p>
+<p><strong>3.</strong>  <a name="limit3"></a>After deserialization is done freeing or reallocating any pointer that was a part of memory image will invoke undefined behaviour (and very probable SIGSEGV signal or library assertion). This is due to the fact any allocated pointer in the original image is not allocated anymore after deserialization. There is only one allocation for the whole memory image that is about to be read in. Libflat provides two functions that can somehow mitigate this obstacle:<br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-k">void</span>* <span class="pl-en">libflat_realloc</span> (<span class="pl-k">void</span>* ptr, <span class="pl-c1">size_t</span> size);
 <span class="pl-k">void</span> <span class="pl-en">libflat_free</span> (<span class="pl-k">void</span>* ptr);</pre></div>
@@ -1600,6 +1600,8 @@ Similar thing happens for pointers:<br></p>
 <p>Such situations (using part of structure/pointer storage in other contexts) are rare (and some might be considered bad practice) however they can happen (and sometimes there might be very good rationale to why to use them) therefore should be supported by Libflat seamlessly. There is actually no point why they wouldn't be supported (this derelict stems from initial library design and is no longer applicable) and will be supported in future releases of Libflat.<br></p>
 
 <p><strong>5.</strong>  Libflat makes a copy of the original memory (i.e. bitwise copy) therefore flattening structures copies all the structure padding as well. This leads to the fact that after deserialization structure padding might be initialized differently as it would be if the structure had been initialized by compiler. This is reported by the Valgrind, however it's hard to imagine any other real-life consequences of this fact.<br></p>
+
+<p><strong>5.</strong>  Libflat flattens memory by recursive invocation of provided recipes. For large trees, graphs or other massively linked data structures there might be situation that the process stack space runs out (stack is needed for recursive function call invocation). It can be solved by rewritting main algorithm in iterative fashion and maintain private allocated stack for its operation.<br></p>
 
 <h2>
 <a id="troubleshooting" class="anchor" href="#troubleshooting" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="trouble"></a>Troubleshooting</h2>
@@ -1732,10 +1734,15 @@ Similar thing happens for pointers:<br></p>
     );
 );</pre></div>
 
+<p>If Libflat magically fails with segmentation fault while flattening memory it's probable that the stack size of main process has just run out (as Libflat flattens memory by recursive invocation of provided recipes and needs stack space for recursive function call invocation). When that happens try to increase the process stack size and relaunch:<br></p>
+
+<pre><code>$ ulimit -s 65536 # or any other number here in kilobytes
+</code></pre>
+
 <h2>
 <a id="contribution" class="anchor" href="#contribution" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="contribute"></a>Contribution</h2>
 
-<p>There are number of ideas how to improve the Libflat. Some ideas are listed below.<br></p>
+<p>There are number of ideas how to improve the Libflat. Some ideas are listed below.</p>
 
 <ol>
 <li>Currently Libflat works on Linux and Windows (x86/x64 architecture). Port to ARM/ARM64 (Android) would be very appreciated.<br>
@@ -1748,6 +1755,8 @@ Similar thing happens for pointers:<br></p>
 </li>
 <li>Adding root pointer to flattened memory image if not present (see: <a href="#trouble">troubleshooting</a>).<br>
 </li>
+<li>Describe flatten image format.<br>
+</li>
 <li>Currently Libflat doesn't support flattening pointers to functions. This functionality would be implemented using dynamic linker capabilities (dladdr on Linux and Windows equivalent) by translating function addresses to corresponding symbols and storing it in the final memory image.<br>
 </li>
 <li>Currently Libflat API only allows to save entire memory image to single file. Consider enhancing the API to allow for creating and returning multiple flattened memory images for selected recipes.<br>
@@ -1756,7 +1765,9 @@ Similar thing happens for pointers:<br></p>
 </li>
 <li>Enable proper error handling instead of rough assertions.<br>
 </li>
-<li>Overcoming problems with free/reallocations in the unflattened memory image (see limitations/3).<br>
+<li>Overcoming problems with free/reallocations in the unflattened memory image (see: <a href="#limit3">limitations/3</a>).<br>
+</li>
+<li>Rewrite flattening algorithm in iterative fashion.<br>
 </li>
 <li>More tests, error reports and bug fixes.<br>
 </li>
