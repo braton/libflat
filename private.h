@@ -37,16 +37,9 @@
 /* Private debugging facilities. In order to use them include their prototypes in the source file */
 void flatten_debug_info();
 void flatten_set_debug_flag(int flag);
+void flatten_debug_memory();
 
 /* Binary stream doubly linked list implementation */
-
-struct blstream {
-	struct blstream* next;
-	struct blstream* prev;
-	void* data;
-	size_t size;
-	size_t index;
-};
 
 struct blstream* binary_stream_append_reserve(size_t size);
 struct blstream* binary_stream_insert_front_reserve(size_t size, struct blstream* where);

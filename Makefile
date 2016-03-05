@@ -45,7 +45,7 @@ examples: $(EXAMPLE_OUT)
 
 define compile_example
 $(1): LDFLAGS += $(EXE_LDFLAGS) -lm
-$(1): CFLAGS += -I$(ROOT_DIR) -Wno-unused-local-typedefs
+$(1): CFLAGS += -I$(ROOT_DIR) -Wno-unused-local-typedefs -Wno-unused-function
 $(1): $(addsuffix .c,$(1)) $(OUTDYN)
 	@echo "  [LD]   $$@"
 	$$(CC) $$(CFLAGS) $$^ $$(LDFLAGS) -o $$@

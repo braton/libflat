@@ -3,16 +3,6 @@
 
 #include "libflat.h"
 
-#ifdef __linux__
-#include <alloca.h>
-#define ALLOCA(x)	alloca(x)
-#else
-#ifdef _WIN32
-#include <malloc.h>
-#define ALLOCA(x)	_malloca(x)
-#endif
-#endif
-
 struct command {
     char* cmd;
     char** values;
