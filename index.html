@@ -25,10 +25,10 @@
 <p><a href="#intro">Introduction</a> - What is Libflat and why to use it<br>
 <a href="#howworks">How Libflat works</a> - Gentle introduction to Libflat operation<br>
 <a href="#details">Implementation details</a> - More details for interested hackers<br>
-<a href="#limit">Limitations</a>Limitations - What you can't do right now (but hope to change in the future)<br>
-<a href="#trouble">Troubleshooting</a>Troubleshooting - Check here in case of problems using Libflat<br>
-<a href="#contribute">Contribution</a>Contribution - Ideas for future improvements<br>
-<a href="#final">Final word</a>Final word - Libflat performance in real-life problems<br></p>
+<a href="#limit">Limitations</a> - What you can't do right now (but hope to change in the future)<br>
+<a href="#trouble">Troubleshooting</a> - Check here in case of problems using Libflat<br>
+<a href="#contribute">Contribution</a> - Ideas for future improvements<br>
+<a href="#final">Final word</a> - Libflat performance in real-life problems<br></p>
 
 <h2>
 <a id="introduction" class="anchor" href="#introduction" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="intro"></a>Introduction</h2>
@@ -81,8 +81,8 @@ sys     0m9.654s
 
 <p>Not so bad, especially when you have lots of RAM (so the only job that needs to be done is to parse all the Makefiles in memory using one thread). But what if we can omit the parsing phase at all and read in the whole memory content ready for going (or almost ready)?<br></p>
 
-<h4>
-<a id="how-libflat-works" class="anchor" href="#how-libflat-works" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="howworks"></a>How Libflat works</h4>
+<h2>
+<a id="how-libflat-works" class="anchor" href="#how-libflat-works" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="howworks"></a>How Libflat works</h2>
 
 <p>Libflat works by making copy of the process memory for indicated variables and structures. It doesn't matter whether original storage is automatic, static or allocated. The result is always stored on the heap (and kept on the heap after deserialization). Memory image is flat, i.e. whole copied memory image has continuous addresses. Pointers to original memory locations are properly resolved in the flattened image. Having whole memory serialized into one continuous memory block makes deserialization very fast (it is just a matter of reading entire block from disk to memory). Pointer resolution phase is needed after image is read in but this has linear complexity with number of pointers.<br></p>
 
@@ -1602,7 +1602,7 @@ Similar thing happens for pointers:<br></p>
 <p><strong>5.</strong>  Libflat makes a copy of the original memory (i.e. bitwise copy) therefore flattening structures copies all the structure padding as well. This leads to the fact that after deserialization structure padding might be initialized differently as it would be if the structure had been initialized by compiler. This is reported by the Valgrind, however it's hard to imagine any other real-life consequences of this fact.<br></p>
 
 <h2>
-<a id="toubleshooting" class="anchor" href="#toubleshooting" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Toubleshooting</h2>
+<a id="troubleshooting" class="anchor" href="#troubleshooting" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="trouble"></a>Troubleshooting</h2>
 
 <p>What to do when flattening fails? First thing to do is to check whether your use case falls into Libflat limitations (). If not there are more possible scenarios that breaks the plateau.<br></p>
 
@@ -1733,7 +1733,7 @@ Similar thing happens for pointers:<br></p>
 );</pre></div>
 
 <h2>
-<a id="contribution" class="anchor" href="#contribution" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="contr"></a>Contribution</h2>
+<a id="contribution" class="anchor" href="#contribution" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="contribute"></a>Contribution</h2>
 
 <p>There are number of ideas how to improve the Libflat. Some ideas are listed below.<br></p>
 
