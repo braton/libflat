@@ -17,7 +17,7 @@ int main(void) {
 	assert(out);
 	flatten_init();
 
-	struct type s = {"Some value here",0};
+	struct type s = { "Some value here", 0 };
 
 	FOR_ROOT_POINTER((unsigned short*)&s.v,
 		FLATTEN_TYPE(unsigned short,(unsigned short*)&s.v);

@@ -4,7 +4,7 @@
 #include "libflat.h"
 
 struct internal_type {
-	int u:4;
+	int u :4;
 	char c;
 };
 
@@ -34,26 +34,20 @@ int main(void) {
 	assert(out);
 	flatten_init();
 
-	char* st[] = {
-	    "string0",
-	    "string1",
-	    "string2",
-	    0
-	};
+	char* st[] = { "string0", "string1", "string2", 0 };
 
-	static struct internal_type u = { .u=1, .c='#' };
+	static struct internal_type u = { .u = 1, .c = '#' };
+	struct internal_type w = { .u = 2, .c = '@' };
 
-	struct internal_type w = { .u=2, .c='@' };
-
-	struct type* alloc_type = calloc(1,sizeof(struct type));
-		alloc_type->name = st[2]+2;
-		alloc_type->next = alloc_type;
-		alloc_type->internal[0] = &u;
-		alloc_type->internal[1] = &w;
+	struct type* alloc_type = calloc(1, sizeof(struct type));
+	alloc_type->name = st[2] + 2;
+	alloc_type->next = alloc_type;
+	alloc_type->internal[0] = &u;
+	alloc_type->internal[1] = &w;
 
 	struct type type_arr[2] = {
-			{ .name="type1", .v=UINT_MAX, &type_arr[1], {&u,&u,0,0}  },
-			{  st[1], .v=0, alloc_type, {0} }
+		{ .name="type1", .v=UINT_MAX, &type_arr[1], {&u,&u,0,0}  },
+		{  st[1], .v=0, alloc_type, {0} }
 	};
 
 	struct type* root_ptr = &type_arr[0];

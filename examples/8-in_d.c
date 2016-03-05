@@ -11,9 +11,7 @@ int main(void) {
 	const char* s = "Very valuable data";
 
 	FOR_ROOT_POINTER(&s,
-		FOR_POINTER(const char*,v,&s,
-			FLATTEN_STRING(v);
-		);
+		FLATTEN_STRING(s);
 	);
 
 	assert(flatten_write(out) == 0);
