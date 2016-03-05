@@ -139,5 +139,9 @@ sys 0m0.128s
 ```
 You can find all examples in the example directory.<br>
 
+###Documentation
+[Full documentation with examples](http://libflat.codessense.com/)
+
+
 ###License
 [GPL Version 2](http://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
