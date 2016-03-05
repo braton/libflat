@@ -607,12 +607,9 @@ Remember: you need to start to be great
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<p>$ examples/5-out</p>
-
-<h1>
-<a id="unflattening-done-summary" class="anchor" href="#unflattening-done-summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Unflattening done. Summary:</h1>
-
-<p>Image read time: 0.000057s
+<pre><code>$ examples/5-out
+# Unflattening done. Summary:
+  Image read time: 0.000057s
   Fixing memory time: 0.000001s
   Total time: 0.000104s
   Total bytes read: 185
@@ -620,12 +617,12 @@ Program name
 Argument 0
 Argument 1
 Argument 2
-Argument 3</p>
-
-<pre><code>We finally came to the last (and most interesting) part where all the fun really begins, i.e. flattening C structures. Flattening C structure is as simple as:&lt;br&gt;
-```c
-FLATTEN_STRUCT(type, pointer);
+Argument 3
 </code></pre>
+
+<p>We finally came to the last (and most interesting) part where all the fun really begins, i.e. flattening C structures. Flattening C structure is as simple as:<br></p>
+
+<div class="highlight highlight-source-c"><pre><span class="pl-en">FLATTEN_STRUCT</span>(type, pointer);</pre></div>
 
 <p>However you have to provide recipe how to actually flatten structure internal fields. In the below example we want to flatten structure <code>figure</code> (which happens to be a square):<br></p>
 
@@ -1677,7 +1674,7 @@ Remember: you need to start to be great
 <p>$ examples/5-out</p>
 
 <h1>
-<a id="unflattening-done-summary-1" class="anchor" href="#unflattening-done-summary-1" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Unflattening done. Summary:</h1>
+<a id="unflattening-done-summary" class="anchor" href="#unflattening-done-summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Unflattening done. Summary:</h1>
 
 <p>Image read time: 0.000057s
   Fixing memory time: 0.000001s
