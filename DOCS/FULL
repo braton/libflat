@@ -338,7 +338,7 @@ $ examples/3-out
 The magic answer to the ultimate question of life?: 3.141593
 ------------------------------------------------
 
-In the write output you can now see the line that says:
+In the output of the previous example you can see the line that says:
 
 ------------------------------------------------
 Linked 2 pointers
@@ -1600,7 +1600,7 @@ int main(void) {
     flatten_init();
 
     static struct internal_type u = { .u = 1, .c = '#' };
-    
+
     struct type type_arr = { .name="type1", .v=666, &type_arr, {&u,&u,0,0}  };
 
     FOR_ROOT_POINTER(&type_arr,
