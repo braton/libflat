@@ -19,17 +19,41 @@
     </section>
 
     <section class="main-content">
-      <h1>
-<a id="table-of-content" class="anchor" href="#table-of-content" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Table of content</h1>
+<h1>
+<a id="table-of-content" class="anchor" href="#table-of-content" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Table of contents</h1>
 
-<p><a href="#intro">Introduction</a> - What is Libflat and why to use it<br>
-<a href="#howworks">How Libflat works</a> - Gentle introduction to Libflat operation<br>
-<a href="#details">Implementation details</a> - More details for interested hackers<br>
-<a href="#limit">Limitations</a> - What you can't do right now (but hope to change in the future)<br>
-<a href="#trouble">Troubleshooting</a> - Check here in case of problems using Libflat<br>
-<a href="#contribute">Contribution</a> - Ideas for future improvements<br>
-<a href="#final">Final word</a> - Libflat performance in real-life problems<br></p>
-
+<table style="width:100rem; font-size: 1.3rem;">
+<tbody>
+<tr>
+<td><a href="#intro">Introduction</a></th>
+<td>What is Libflat and why to use it</th>
+</tr>
+<tr>
+<td><a href="#howworks">How Libflat works</a></td>
+<td>Gentle introduction to Libflat operation</td>
+</tr>
+<tr>
+<td><a href="#details">Implementation details</a></td>
+<td>More details for interested hackers</td>
+</tr>
+<tr>
+<td><a href="#limit">Limitations</a></td>
+<td>What you can't do right now (but hope to change in the future)</td>
+</tr>
+<tr>
+<td><a href="#trouble">Troubleshooting</a></td>
+<td>Check here in case of problems using Libflat</td>
+</tr>
+<tr>
+<td><a href="#contribute">Contribution</a></td>
+<td>Ideas for future improvements</td>
+</tr>
+<tr>
+<td><a href="#final">Final word</a></td>
+<td>Libflat performance in real-life problems</td>
+</tr>
+</tbody>
+</table>
 <h2>
 <a id="introduction" class="anchor" href="#introduction" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="intro"></a>Introduction</h2>
 
@@ -40,7 +64,7 @@
 <p>Good example for using Libflat is Android build system (still based on Makefile build system as of Feb. 2016). Androd build system is monolithic which makes it extremely parallelizable.<br>
 The main obstacle though (especially when you need to do lots of partial builds) is that you need to read all the makefiles up front (and there is lots of them). Trying it with hot caches gives the following (tests for android-6.0.0_r5)<br></p>
 
-<pre><code>$ source build/envsetup.sh
+<consoleout><code>$ source build/envsetup.sh
 $ lunch aosp_arm64-eng
 $ time make
 ============================================
@@ -70,14 +94,14 @@ including ./bionic/Android.mk ...
 including ./system/security/softkeymaster/Android.mk ...
 including ./system/vold/Android.mk ...
 including ./tools/external/fat32lib/Android.mk ...
-</code></pre>
+</code></consoleout>
 
 <p>Summary:<br></p>
 
-<pre><code>real    0m41.977s
+<consoleout><code>real    0m41.977s
 user    0m32.590s
 sys     0m9.654s
-</code></pre>
+</code></consoleout>
 
 <p>Not so bad, especially when you have lots of RAM (so the only job that needs to be done is to parse all the Makefiles in memory using one thread). But what if we can omit the parsing phase at all and read in the whole memory content ready for going (or almost ready)?<br></p>
 
@@ -112,12 +136,12 @@ sys     0m9.654s
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/1-in
+<consoleout><code>$ examples/1-in
 # Flattening done. Summary:
   Memory size: 4 bytes
   Linked 0 pointers
   Written 44 bytes
-</code></pre>
+</code></consoleout>
 
 <p>On the other side reading the stored value can be now done by:<br></p>
 
@@ -142,14 +166,14 @@ sys     0m9.654s
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/1-out
+<consoleout><code>$ examples/1-out
 # Unflattening done. Summary:
   Image read time: 0.000036s
   Fixing memory time: 0.000000s
   Total time: 0.000063s
   Total bytes read: 44
 DABBAD00
-</code></pre>
+</code></consoleout>
 
 <p>Similar procedure can be done with arrays and strings as in the below examples:<br></p>
 
@@ -186,12 +210,12 @@ DABBAD00
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/2-in
+<consoleout><code>$ examples/2-in
 # Flattening done. Summary:
   Memory size: 363 bytes
   Linked 0 pointers
   Written 411 bytes
-</code></pre>
+</code></consoleout>
 
 <div class="highlight highlight-source-c"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
 #<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>assert.h<span class="pl-pds">&gt;</span></span>
@@ -221,7 +245,7 @@ DABBAD00
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/2-out
+<consoleout><code>$ examples/2-out
 # Unflattening done. Summary:
   Image read time: 0.000055s
   Fixing memory time: 0.000000s
@@ -229,7 +253,7 @@ DABBAD00
   Total bytes read: 411
 0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181 6765 10946 17711 28657 46368 75025 121393 196418 317811 514229 832040 1346269 2178309 3524578 5702887 9227465 14930352 24157817 39088169 63245986 
 Fibonacci would not calculate this as fast
-</code></pre>
+</code></consoleout>
 
 <p>This brings the notion of the so called root pointer. When you read the contents of memory you will have a block of data to your disposal. But how to access it? You need some pointer to any part of this memory (assuming you can interpret the memory from this point and link to other parts). This is what the root pointer is for. It is just a pointer to some part of unflatten memory. This has its own storage and is not part of the memory image (but of course it is part of the image file).<br>
 Let's back to our first example. <br></p>
@@ -294,12 +318,12 @@ Let's back to our first example. <br></p>
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/3-in
+<consoleout><code>$ examples/3-in
 # Flattening done. Summary:
   Memory size: 24 bytes
   Linked 2 pointers
   Written 80 bytes
-</code></pre>
+</code></consoleout>
 
 <p>You have just written three values into memory (two pointers and one double value). How so?<br></p>
 
@@ -353,19 +377,19 @@ Let's back to our first example. <br></p>
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/3-out
+<consoleout><code>$ examples/3-out
 # Unflattening done. Summary:
   Image read time: 0.000058s
   Fixing memory time: 0.000001s
   Total time: 0.000105s
   Total bytes read: 80
 The magic answer to the ultimate question of life?: 3.141593
-</code></pre>
+</code></consoleout>
 
 <p>In the output of the previous example you can see the line that says:<br></p>
 
-<pre><code>Linked 2 pointers
-</code></pre>
+<consoleout><code>Linked 2 pointers
+</code></consoleout>
 
 <p>The memory image contained two pointers as we just explained. But after reading them in in the second process (which could actually happened on different computer on diffrenent continent) the pointer values would not probably have any proper meaning in the context of new process address space. That's why we need to fix them.<br></p>
 
@@ -415,7 +439,7 @@ The magic answer to the ultimate question of life?: 3.141593
 
 <p>And the result of running it:<br></p>
 
-<pre><code>$ examples/4-in
+<consoleout><code>$ examples/4-in
 &amp;carr[0]: 0x6020c0
 &amp;start: 0x7fff9da3a8c0 -&gt; 0x6020c0
 &amp;middle: 0x7fff9da3a8c8 -&gt; 0x6020e9
@@ -423,7 +447,7 @@ The magic answer to the ultimate question of life?: 3.141593
   Memory size: 87 bytes
   Linked 2 pointers
   Written 151 bytes
-</code></pre>
+</code></consoleout>
 
 <p>The original memory looks as follows:<br></p>
 
@@ -502,7 +526,7 @@ The magic answer to the ultimate question of life?: 3.141593
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/4-out
+<consoleout><code>$ examples/4-out
 # Unflattening done. Summary:
   Image read time: 0.000037s
   Fixing memory time: 0.000001s
@@ -514,7 +538,7 @@ The magic answer to the ultimate question of life?: 3.141593
 *(0x8de2ef) =&gt; 0x8de2c9
 You don't need to be great to start, but you need to start to be great
 Remember: you need to start to be great
-</code></pre>
+</code></consoleout>
 
 <p>New memory area is created in the allocated storage area (the heap) and memory image is read in:<br></p>
 
@@ -582,12 +606,12 @@ Remember: you need to start to be great
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/5-in
+<consoleout><code>$ examples/5-in
 # Flattening done. Summary:
   Memory size: 105 bytes
   Linked 5 pointers
   Written 185 bytes
-</code></pre>
+</code></consoleout>
 
 <p>Here, for each pointer in the array <code>argv</code> we create temporary variable <code>arg</code> of type <code>const char*</code> which we can use in the subsequent block of code. We must specify the size of the array. We might know it in advance or we can compute it in real time. In case of arrays terminated with pointer 0 (NULL pointer) there is function <code>ptrarrmemlen</code> available for this purpose. It simply iterates through entire pointer array and counts the pointers until it reaches the pointer 0 (and counts it as well). Similar function is used internally by the <code>FLATTEN_STRING</code> macro, i.e. <code>strmemlen</code> function which returns the length of string including NULL terminating 0 value.<br></p>
 
@@ -618,7 +642,7 @@ Remember: you need to start to be great
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/5-out
+<consoleout><code>$ examples/5-out
 # Unflattening done. Summary:
   Image read time: 0.000057s
   Fixing memory time: 0.000001s
@@ -629,7 +653,7 @@ Argument 0
 Argument 1
 Argument 2
 Argument 3
-</code></pre>
+</code></consoleout>
 
 <p>We finally came to the last (and most interesting) part where all the fun really begins, i.e. flattening C structures. Flattening C structure is as simple as:<br></p>
 
@@ -688,13 +712,13 @@ Argument 3
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/6-in_a
+<consoleout><code>$ examples/6-in_a
 sizeof(struct figure): 16
 # Flattening done. Summary:
   Memory size: 16 bytes
   Linked 0 pointers
   Written 56 bytes
-</code></pre>
+</code></consoleout>
 
 <p>As we can see the structure has been actually flattened but quick glance reveals that not everything might have gone as expected. We have just written 16 bytes (the size of the structure) itself but no internal fields has been touched (and they will point to the vain after reading them out).<br></p>
 
@@ -709,13 +733,13 @@ sizeof(struct figure): 16
     <span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(edge, e);
 );</pre></div>
 
-<pre><code>$ examples/6-in_b
+<consoleout><code>$ examples/6-in_b
 sizeof(struct figure): 16
 # Flattening done. Summary:
   Memory size: 183 bytes
   Linked 6 pointers
   Written 271 bytes
-</code></pre>
+</code></consoleout>
 
 <p>Voila! By adding several lines of code we managed to write down the whole figure properly resolving all pointers along the way.<br>
 So far we have seen several functions for writing memory image, i.e.:<br></p>
@@ -802,14 +826,14 @@ AGGREGATE_FLATTEN_STRUCT_ARRAY(type, field, size)</pre></div>
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/6-out
+<consoleout><code>$ examples/6-out
 # Unflattening done. Summary:
   Image read time: 0.000051s
   Fixing memory time: 0.000001s
   Total time: 0.000095s
   Total bytes read: 271
 square circumference: 8.000000
-</code></pre>
+</code></consoleout>
 
 <p>It would be also possible to flatten the entire structure with all links using mere pointer flattening functions but in that case we would need to implement the recursive structure member resolution by ourselves:<br></p>
 
@@ -875,17 +899,17 @@ square circumference: 8.000000
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/6-in_c
+<consoleout><code>$ examples/6-in_c
 sizeof(struct figure): 16
 # Flattening done. Summary:
   Memory size: 183 bytes
   Linked 6 pointers
   Written 271 bytes
-</code></pre>
+</code></consoleout>
 
 <p>In the final example we will try to pressure the library a little bit and notice how it responds to more demanding job. Let's modify the previous example and try to approximate a circle. To avoid stack overflow (in the previous example walking through the edges during flattening stage required one recursive call deeper per each edge) we will modify the structures slightly. <code>struct figure</code> will hold a table of all points and each point will hold a pointer to each other point in the polygon. We will build regular polygon with points around the circle circumference of radius 1. When number of points is 8 it would look something like below:<br></p>
 
-<p><img src="https://github.com/braton/libflat/blob/gh-pages/images/figure_1.JPG?raw=true" alt="Figure 1"></p>
+<p><img src="https://github.com/braton/libflat/blob/gh-pages/images/figure.png?raw=true" alt="Figure 1"></p>
 
 <p>We will describe the flattening recipe for each structure as in the full example below:<br></p>
 
@@ -972,17 +996,17 @@ sizeof(struct figure): 16
 
 <p>The example code allows us to specify the number of points we want to process, e.g.:<br></p>
 
-<pre><code>$ examples/circular-in 8
-</code></pre>
+<consoleout><code>$ examples/circular-in 8
+</code></consoleout>
 
 <p>Depending on the size of available memory (and available disk space and time) we might set the value accordingly. For the following value we have got:<br></p>
 
-<pre><code>$ examples/circular-in 10000
+<consoleout><code>$ examples/circular-in 10000
 # Flattening done. Summary:
   Memory size: 800240031 bytes
   Linked 100000002 pointers
   Written 1600240087 bytes
-</code></pre>
+</code></consoleout>
 
 <p>On the other side we will now read the entire image and try to calculate several properties of our close to circle polygon. These would be number of edges, sum of lengths of edges and diagonals and finally the approximated circumference (in the example we will walk through all the points and count the edges/diagonals and their lengths; after walking from point A to point B we will break the connection between B and A (by setting the B pointer to 0)):<br></p>
 
@@ -1054,7 +1078,7 @@ sizeof(struct figure): 16
 
 <p>Running the example with warm caches yields:<br></p>
 
-<pre><code>$ examples/circular-out
+<consoleout><code>$ examples/circular-out
 # Unflattening done. Summary:
   Image read time: 0.303173s
   Fixing memory time: 0.112452s
@@ -1063,18 +1087,18 @@ sizeof(struct figure): 16
 Number of edges: 49995000
 Sum of lengths of edges/diagonals: 63661976.71272929012775421
 Half of the circumference: 3.14159260191227308
-</code></pre>
+</code></consoleout>
 
 <p>Clearing the cache makes things slower as expected:<br></p>
 
-<pre><code>$ echo 1 &gt; /proc/sys/vm/drop_caches
+<consoleout><code>$ echo 1 &gt; /proc/sys/vm/drop_caches
 $ examples/circular-out
 # Unflattening done. Summary:
   Image read time: 4.053782s
   Fixing memory time: 0.114766s
   Total time: 4.168599s
   Total bytes read: 1600240087
-</code></pre>
+</code></consoleout>
 
 <p>As showed it the example above unflattening depends mostly on the disk image read time and any further potential optimizations would need be focused on that part.<br></p>
 
@@ -1169,9 +1193,9 @@ $ examples/circular-out
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/7-in
+<consoleout><code>$ examples/7-in
 (...)
-</code></pre>
+</code></consoleout>
 
 <p>Let's draw the original memory image that is about to be serialized. It might look like below.<br></p>
 
@@ -1551,9 +1575,9 @@ Solution described above yields another problem, i.e. the flattened memory conte
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/8-in_a
+<consoleout><code>$ examples/8-in_a
 8-in_a: examples/8-in_a.c:12: flatten_struct_type: Assertion `__node-&gt;start==(uint64_t)_ptr' failed.
-</code></pre>
+</code></consoleout>
 
 <p>This will fail as part of the structure storage (2 bytes of the <code>v</code> field) has already been flattened and structure can only be flattened as a whole.<br>
 Similar thing happens for pointers:<br></p>
@@ -1591,9 +1615,9 @@ Similar thing happens for pointers:<br></p>
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/8-in_b
+<consoleout><code>$ examples/8-in_b
 8-in_b: libflat.c:406: get_pointer_node: Assertion `node-&gt;last&gt;=p+sizeof(void*)-1 &amp;&amp; "Invalid pointer address"' failed.
-</code></pre>
+</code></consoleout>
 
 <p>Here 1 byte of the <code>st[0]</code> pointer has already been flattened and therefore flattening the whole pointer fails.<br></p>
 
@@ -1661,9 +1685,9 @@ Similar thing happens for pointers:<br></p>
 
 <p>After running it you should get the following mysterious assertion:<br></p>
 
-<pre><code>$ examples/8-in_c
+<consoleout><code>$ examples/8-in_c
 8-in_c: libflat.c:257: fixup_set_insert: Assertion `(inode-&gt;ptr-&gt;node-&gt;start+inode-&gt;ptr-&gt;offset)==(ptr-&gt;node-&gt;start+ptr-&gt;offset) &amp;&amp; "Multiple pointer mismatch for the same storage"' failed.
-</code></pre>
+</code></consoleout>
 
 <p>This tells us that we have just flattened some memory location through a pointer but previously we flattened different memory location through the same pointer (i.e. the same pointer points to two different locations at the same time). How it's possible? Take a look more closely at the flattening recipes:<br></p>
 
@@ -1716,9 +1740,9 @@ Similar thing happens for pointers:<br></p>
     <span class="pl-k">return</span> <span class="pl-c1">0</span>;
 }</pre></div>
 
-<pre><code>$ examples/8-in_d
+<consoleout><code>$ examples/8-in_d
 8-in_d: libflat.c:530: flatten_write: Assertion `node!=0' failed.
-</code></pre>
+</code></consoleout>
 
 <p>Here the only actually flattened memory region is for the string storage area (19 bytes). Therefore root pointer which points to the address of first byte of the string is not included in the final memory image. To fix it replace flattening recipe by:<br></p>
 
@@ -1821,7 +1845,7 @@ Similar thing happens for pointers:<br></p>
 
 <p>After other amendments (pointer for functions for hash tables needed to be re-initialized among other things) internal GNU Make image has been created and saved:<br></p>
 
-<pre><code>$ time make -M.cachefull
+<consoleout><code>$ time make -M.cachefull
 ============================================
 PLATFORM_VERSION_CODENAME=REL
 PLATFORM_VERSION=6.0
@@ -1858,11 +1882,11 @@ including ./tools/external/fat32lib/Android.mk ...
 real    1m26.891s
 user    0m45.526s
 sys 0m39.327s
-</code></pre>
+</code></consoleout>
 
 <p>Finally reading-in internal GNU Make data structures with warm caches and fully built binaries (incremental build without changes) concludes the journey:<br></p>
 
-<pre><code>$ time make -c.cachefull
+<consoleout><code>$ time make -c.cachefull
 # Unflattening done. Summary:
   Image read time: 0,101719s
   Fixing memory time: 0,033349s
@@ -1873,12 +1897,13 @@ make: Nothing to be done for 'droid'.
 real    0m0.662s
 user    0m0.465s
 sys 0m0.200s
-</code></pre>
+</code></consoleout>
 
       <footer class="site-footer">
         <span class="site-footer-owner"><a href="https://github.com/braton/libflat">Libflat</a> is maintained by <a href="https://github.com/braton">braton</a>.</span>
 
-        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.<br>
+ Style edited by <a href="https://github.com/forestnymph">ForestNymph</a>.</span>
       </footer>
 
     </section>
