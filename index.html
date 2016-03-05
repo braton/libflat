@@ -874,7 +874,7 @@ sizeof(struct figure): 16
 
 <p>In the final example we will try to pressure the library a little bit and notice how it responds to more demanding job. Let's modify the previous example and try to approximate a circle. To avoid stack overflow (in the previous example walking through the edges during flattening stage required one recursive call deeper per each edge) we will modify the structures slightly. <code>struct figure</code> will hold a table of all points and each point will hold a pointer to each other point in the polygon. We will build regular polygon with points around the circle circumference of radius 1. When number of points is 8 it would look something like below:<br></p>
 
-<p><img src="https://github.com/braton/libflat/blob/gh-pages/images/figure_1.png" alt="Figure 1"></p>
+<p><img src="https://github.com/braton/libflat/blob/gh-pages/images/figure_1.JPG" alt="Figure 1"></p>
 
 <p>We will describe the flattening recipe for each structure as in the full example below:<br></p>
 
