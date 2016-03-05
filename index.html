@@ -1503,7 +1503,7 @@ void flatten_set_debug_flag(int flag);
 <p>Solution described above yields another problem, i.e. the flattened memory content need to stay persistent in memory even though most of the content (accessible through pointers) might be deallocated and no longer used. Future solutions might track pointers frees/allocations and rebuild memory image when appropriate (that would need to somehow pass the information about the length of allocated storage though).<br></p>
 
 <ol>
-<li>[limitations/4] In the current version of Libflat there are some limitations for the structure and pointer overlays that can be flattened. For example structure storage can only be flattened as a whole memory block (any part of the structure flattened from other context will give assertion during structure processing). Same applies for the storage of pointers. Consider the below example:<br>
+<li>[limit4] In the current version of Libflat there are some limitations for the structure and pointer overlays that can be flattened. For example structure storage can only be flattened as a whole memory block (any part of the structure flattened from other context will give assertion during structure processing). Same applies for the storage of pointers. Consider the below example:<br>
 </li>
 </ol>
 
@@ -1741,7 +1741,7 @@ void flatten_set_debug_flag(int flag);
 </li>
 <li>No tests has been done with C unions and adding such tests would be appreciated.<br>
 </li>
-<li>Fixing limited structure/pointer overlays (see: [[limitations/4|lim4]]).<br>
+<li>Fixing limited structure/pointer overlays (see: [[limitations/4|limit4]]).<br>
 </li>
 <li>Adding root pointer to flattened memory image if not present (see troubleshooting).<br>
 </li>
