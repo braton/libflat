@@ -229,7 +229,7 @@ Let's back to our first example. <br></p>
     <span class="pl-en">FLATTEN_TYPE</span>(<span class="pl-k">int</span>, &amp;automatic);
 );</pre></div>
 
-<p>We simply told our flattener engine that we want to access the memory through the address of the "automatic" variable (i.e. we will hold it reference). Check out that flattened memory size is 4 c-bytes (which happens to be the sizeof(int) on my example making machine). But it doesn't need to be this way. We can modify the first example slightly and specify the root pointer address through some other pointer variable:</p>
+<p>We simply told our flattener engine that we want to access the memory through the address of the <code>automatic</code> variable (i.e. we will hold it reference). Check out that flattened memory size is 4 c-bytes (which happens to be the sizeof(int) on my example making machine). But it doesn't need to be this way. We can modify the first example slightly and specify the root pointer address through some other pointer variable:</p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-k">int</span> automatic = 0xDABBAD00;
 <span class="pl-k">int</span>* pi = &amp;automatic;
@@ -306,7 +306,7 @@ Let's back to our first example. <br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-en">FOR_POINTER</span>(<span class="pl-k">double</span>**, p, &amp;pointer_to_pointer_to_it,...);</pre></div>
 
-<p>takes the actual value pointed to by <code>&amp;pointer_to_pointer_to_it</code> and stores it in newly created variable <code>p</code> of appropriate type (double**). This variable must be pointer hence the macro name. New variable <code>p</code> (you can actually give it any accessible name) can be used in the block of code that follows ("..." macro arguments).<br></p>
+<p>takes the actual value pointed to by <code>&amp;pointer_to_pointer_to_it</code> and stores it in newly created variable <code>p</code> of appropriate type (double**). This variable must be pointer hence the macro name. New variable <code>p</code> (you can actually give it any accessible name) can be used in the block of code that follows (<code>...</code> macro arguments).<br></p>
 
 <p>The following code we does the same trick, i.e. writes the value pointed by <code>p</code> (of type double*):<br></p>
 
@@ -1373,7 +1373,7 @@ Let's back to our first example. <br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-en">FOR_POINTER</span>(<span class="pl-k">double</span>**, p, &amp;pointer_to_pointer_to_it,...);</pre></div>
 
-<p>takes the actual value pointed to by <code>&amp;pointer_to_pointer_to_it</code> and stores it in newly created variable <code>p</code> of appropriate type (double**). This variable must be pointer hence the macro name. New variable <code>p</code> (you can actually give it any accessible name) can be used in the block of code that follows ("..." macro arguments).<br></p>
+<p>takes the actual value pointed to by <code>&amp;pointer_to_pointer_to_it</code> and stores it in newly created variable <code>p</code> of appropriate type (double**). This variable must be pointer hence the macro name. New variable <code>p</code> (you can actually give it any accessible name) can be used in the block of code that follows (<code>...</code> macro arguments).<br></p>
 
 <p>The following code we does the same trick, i.e. writes the value pointed by <code>p</code> (of type double*):<br></p>
 
@@ -2618,7 +2618,7 @@ void flatten_set_debug_flag(int flag);
 8-in_a: examples/8-in_a.c:12: flatten_struct_type: Assertion `__node-&gt;start==(uint64_t)_ptr' failed.
 </code></pre>
 
-<p>This will fail as part of the structure storage (2 bytes of the "v" field) has already been flattened and structure can only be flattened as a whole.<br></p>
+<p>This will fail as part of the structure storage (2 bytes of the <code>v</code> field) has already been flattened and structure can only be flattened as a whole.<br></p>
 
 <p>Similar thing happens for pointers:<br></p>
 
@@ -2745,7 +2745,7 @@ void flatten_set_debug_flag(int flag);
 
 <div class="highlight highlight-source-c"><pre><span class="pl-en">AGGREGATE_FLATTEN_TYPE_ARRAY</span>(<span class="pl-k">struct</span> internal_type*, internal, <span class="pl-c1">4</span>);</pre></div>
 
-<p>flattens storage of 4 pointers from the <code>internal</code> array but it's already been flattened when the structure storage got dumped! In other words, the <code>internal</code> table is a part of structure storage (it is embedded inside the structure, pointer by pointer) and the above line is superfluous. To see the exact cause notice that <code>internal</code> expands to the type pointer to <code>struct internal*</code>, storage for our 4 pointers has already been flattened (when encompassing structure storage has been flattened) but Libflat remembers that at offset corresponding to <code>internal</code> field we have a pointer to the internal structure storage (this is incorrect!). Later on when we flatten first <code>struct internal_type</code> Libflat got another pointer at the same offset which points to different location (static frame where "u" has been defined). After removing the superfluous line all works as expected:<br></p>
+<p>flattens storage of 4 pointers from the <code>internal</code> array but it's already been flattened when the structure storage got dumped! In other words, the <code>internal</code> table is a part of structure storage (it is embedded inside the structure, pointer by pointer) and the above line is superfluous. To see the exact cause notice that <code>internal</code> expands to the type pointer to <code>struct internal*</code>, storage for our 4 pointers has already been flattened (when encompassing structure storage has been flattened) but Libflat remembers that at offset corresponding to <code>internal</code> field we have a pointer to the internal structure storage (this is incorrect!). Later on when we flatten first <code>struct internal_type</code> Libflat got another pointer at the same offset which points to different location (static frame where <code>u</code> has been defined). After removing the superfluous line all works as expected:<br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-en">FUNCTION_DEFINE_FLATTEN_STRUCT</span>(type,
     <span class="pl-en">AGGREGATE_FLATTEN_STRING</span>(name);
@@ -2832,9 +2832,9 @@ void flatten_set_debug_flag(int flag);
 <h2>
 <a id="final-word" class="anchor" href="#final-word" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Final word</h2>
 
-<p>To conclude all thoughts let's get back to the serializing GNU Make internal data structures. The question was whether we can omit the parsing phase at all and read in the whole memory content ready for going (or almost ready)? First version of Libflat was specifically created for that task. The main data structure of GNU Make internals is the <code>struct file</code> structure. It's opaque structure that branches and links with other <code>struct file</code> structues into the dependency graph. Other important structures are <code>struct hash_table</code> and <code>struct rule</code> among others.</p>
+<p>To conclude all thoughts let's get back to the serializing GNU Make internal data structures. The question was whether we can omit the parsing phase at all and read in the whole memory content ready for going (or almost ready)? First version of Libflat was specifically created for that task. The main data structure of GNU Make internals is the <code>struct file</code> structure. It's opaque structure that branches and links with other <code>struct file</code> structues into the dependency graph. Other important structures are <code>struct hash_table</code> and <code>struct rule</code> among others.<br></p>
 
-<p>The following recipes has been created for the internal Make structures (three most complicated data structures has been selected here):</p>
+<p>The following recipes has been created for the internal Make structures (three most complicated data structures has been selected here):<br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-en">FUNCTION_DEFINE_FLATTEN_STRUCT</span>(file,
     <span class="pl-en">AGGREGATE_FLATTEN_STRING</span>(name);
@@ -2873,14 +2873,13 @@ void flatten_set_debug_flag(int flag);
     );
     <span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(dep, deps);
     <span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(commands, cmds);
-);
+);</pre></div>
 
-After other <span class="pl-en">amendments</span> (pointer <span class="pl-k">for</span> functions <span class="pl-k">for</span> hash tables needed to be re-initialized among other things) internal GNU Make image has been created and saved:&lt;br&gt;</pre></div>
+<p>After other amendments (pointer for functions for hash tables needed to be re-initialized among other things) internal GNU Make image has been created and saved:<br></p>
 
-<h1>
-<a id="-time-make--mcachefull" class="anchor" href="#-time-make--mcachefull" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>$ time make -M.cachefull</h1>
-
-<p>PLATFORM_VERSION_CODENAME=REL
+<pre><code>$ time make -M.cachefull
+============================================
+PLATFORM_VERSION_CODENAME=REL
 PLATFORM_VERSION=6.0
 TARGET_PRODUCT=aosp_arm64
 TARGET_BUILD_VARIANT=eng
@@ -2896,53 +2895,30 @@ HOST_ARCH=x86_64
 HOST_OS=linux
 HOST_OS_EXTRA=Linux-3.13.0-58-generic-x86_64-with-Ubuntu-14.04-trusty
 HOST_BUILD_TYPE=release
-BUILD_ID=MRA58K</p>
-
-<h1>
-<a id="out_dirout" class="anchor" href="#out_dirout" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>OUT_DIR=out</h1>
-
-<p>including ./abi/cpp/Android.mk ...
+BUILD_ID=MRA58K
+OUT_DIR=out
+============================================
+including ./abi/cpp/Android.mk ...
 including ./art/Android.mk ...
 including ./bionic/Android.mk ...
 ...
 including ./system/security/softkeymaster/Android.mk ...
 including ./system/vold/Android.mk ...
-including ./tools/external/fat32lib/Android.mk ...</p>
+including ./tools/external/fat32lib/Android.mk ...
 
-<h1>
-<a id="flattening-done-summary" class="anchor" href="#flattening-done-summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Flattening done. Summary:</h1>
-
-<p>Memory size: 467750822 bytes
+# Flattening done. Summary:
+  Memory size: 467750822 bytes
   Linked 13075800 pointers
-  Written 572357358 bytes</p>
+  Written 572357358 bytes
 
-<p>real    1m26.891s
+real    1m26.891s
 user    0m45.526s
-sys 0m39.327s</p>
-
-<pre><code>
-Finally reading-in internal GNU Make data structures with warm caches and fully built binaries (incremental build without changes) concludes the journey:&lt;br&gt;
+sys 0m39.327s
 </code></pre>
 
-<p>$ time make -c.cachefull</p>
+<p>Finally reading-in internal GNU Make data structures with warm caches and fully built binaries (incremental build without changes) concludes the journey:<br></p>
 
-<h1>
-<a id="unflattening-done-summary-2" class="anchor" href="#unflattening-done-summary-2" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Unflattening done. Summary:</h1>
-
-<p>Image read time: 0,101719s
-  Fixing memory time: 0,033349s
-  Total time: 0,135113s
-  Total bytes read: 572357358
-make: Nothing to be done for 'droid'.</p>
-
-<p>real    0m0.662s
-user    0m0.465s
-sys 0m0.200s</p>
-
-<pre><code>`structures with warm caches and fully built binaries (incremental build without changes) concludes the journey:
-
-------------------------------------------------
-$ time make -c.cachefull
+<pre><code>$ time make -c.cachefull
 # Unflattening done. Summary:
   Image read time: 0,101719s
   Fixing memory time: 0,033349s
@@ -2953,7 +2929,21 @@ make: Nothing to be done for 'droid'.
 real    0m0.662s
 user    0m0.465s
 sys 0m0.200s
-------------------------------------------------
+</code></pre>
+
+<p>structures with warm caches and fully built binaries (incremental build without changes) concludes the journey:<br></p>
+
+<pre><code>$ time make -c.cachefull
+# Unflattening done. Summary:
+  Image read time: 0,101719s
+  Fixing memory time: 0,033349s
+  Total time: 0,135113s
+  Total bytes read: 572357358
+make: Nothing to be done for 'droid'.
+
+real    0m0.662s
+user    0m0.465s
+sys 0m0.200s
 </code></pre>
 
       <footer class="site-footer">
