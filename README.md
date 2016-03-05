@@ -1,14 +1,16 @@
-Libflat
-========
+## Libflat - library for fast serialization of C structures
 
 Let's say you have a set data structure to store strings. It's implemented based on the red-black tree. It has simple API as follows:
 
+```c
 int stringset_insert(const char* s);
 struct string_node* stringset_search(const char* s);
 void stringset_print(struct rb_root* root);
+```
 
 You put some strings there and print its content:
 
+```c
 stringset_insert("DAAA");
 stringset_insert("AAAA");
 stringset_insert("AAAB");
@@ -18,8 +20,10 @@ stringset_insert("AAAA");
 stringset_insert("AAAA");
 stringset_insert("BAAA");
 stringset_print(&stringset_root);
+```
 
 You're satisfied with the output:
+```
 ------------------------------------------------
 [
   AAAA
@@ -29,8 +33,9 @@ You're satisfied with the output:
   DAAA
 ]
 ------------------------------------------------
+```
 
-Now you want to save the data for later processing. It's big and you want to access it quickly so you decide to serialize your string set and read-in all the content back later on. Libflat is about how to do it as fast as possible!
+Now you want to save the data for later processing. It's big and you want to access it quickly so you decide to serialize your string set and read-in all the content back later on. ** Libflat is about how to do it as fast as possible! **
 
 Your base data structures that define the red-black tree are:
 
