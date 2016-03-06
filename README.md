@@ -1,6 +1,6 @@
 ## Libflat - library for fast serialization of C structures
 
-Let's say you have a set data structure to store strings. It's implemented based on the red-black tree. It has simple API as follows:<br>
+Let's say you have a set data structure to store strings. It's implemented based on red-black tree. It has simple API as follows:<br>
 
 ```c
 int stringset_insert(const char* s);
@@ -93,6 +93,7 @@ const struct rb_root* root = ROOT_POINTER_NEXT(const struct rb_root*);
 stringset_print(root);
 ```
 ```
+$ examples/stringset-out_a
 # Unflattening done. Summary:
   Image read time: 0.000033s
   Fixing memory time: 0.000001s
@@ -121,7 +122,7 @@ sys     0m2.077s
 ```
 You might want to increase stack size when serializing such large trees (as serialization is done recursively and stack overlow is lurking in the backgroud):<br>
 ```
-ulimit -s 1048576
+ulimit -s 524288
 ```
 Output:<br>
 ```
@@ -137,7 +138,25 @@ real    0m1.078s
 user    0m0.949s
 sys 0m0.128s
 ```
-You can find all examples in the example directory.<br>
+Here you are. In 15 lines of code you've made full serialization of a large tree that takes more than 400MB of memory. Moreover you've read it back almost instantly!
+
+You can find the above (and lots of other) examples in the example directory.<br>
+
+###How to build
+```
+git clone git@github.com:braton/libflat.git
+cd libflat
+make
+make examples
+```
+###How to test
+```
+export LD_LIBRARY_PATH=`pwd`
+make test
+examples/stringset-in_a
+examples/stringset-out_a
+(...)
+```
 
 ###Documentation
 [Full documentation with examples](http://libflat.codessense.com/)
