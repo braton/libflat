@@ -275,11 +275,11 @@ Let's back to our first example. <br></p>
 
 <p>After image read we just assign this value to our own defined variable as below:<br></p>
 
-<div class="highlight highlight-source-c"><pre><span class="pl-k">int</span>* now_allocated = ROOT_POINTER_NEXT(<span class="pl-k">int</span>*);</pre></div>
+<div class="highlight highlight-source-c"><pre><span class="pl-k">int</span>* now_allocated = <span class="pl-en">ROOT_POINTER_NEXT</span>(<span class="pl-k">int</span>*);</pre></div>
 
 <p>You might have several root pointers to several parts of unflatten memory. To access them you simply call <code>ROOT_POINTER_NEXT</code> with proper type sequentially to receive one root pointer after another (you will get them in the order you did issue <code>FOR_ROOT_POINTER</code> macro in the first place). You can also retrieve root pointers as below:<br></p>
 
-<div class="highlight highlight-source-c"><pre><span class="pl-k">const</span> <span class="pl-k">char</span>* s = ROOT_POINTER_SEQ(<span class="pl-k">const</span> <span class="pl-k">char</span>*, <span class="pl-c1">1</span>);</pre></div>
+<div class="highlight highlight-source-c"><pre><span class="pl-k">const</span> <span class="pl-k">char</span>* s = <span class="pl-en">ROOT_POINTER_SEQ</span>(<span class="pl-k">const</span> <span class="pl-k">char</span>*, <span class="pl-c1">1</span>);</pre></div>
 
 <p>This will read the second (with index 1) root pointer stored while creating memory image.<br></p>
 
@@ -745,9 +745,9 @@ sizeof(struct figure): 16
 So far we have seen several functions for writing memory image, i.e.:<br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-en">FLATTEN_STRING</span>(pointer)
-FLATTEN_TYPE(type, pointer)
-FLATTEN_TYPE_ARRAY(type, pointer, size)
-FLATTEN_STRUCT(type, pointer)</pre></div>
+<span class="pl-en">FLATTEN_TYPE</span>(type, pointer)
+<span class="pl-en">FLATTEN_TYPE_ARRAY</span>(type, pointer, size)
+<span class="pl-en">FLATTEN_STRUCT</span>(type, pointer)</pre></div>
 
 <p>There is one more function we can use to save memory structures:<br></p>
 
@@ -760,10 +760,10 @@ FLATTEN_STRUCT(type, pointer)</pre></div>
 <p>Each of these five functions has so called AGGREGATE counterparts, i.e.:<br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-en">AGGREGATE_FLATTEN_STRING</span>(field)
-AGGREGATE_FLATTEN_TYPE(type, field)
-AGGREGATE_FLATTEN_TYPE_ARRAY(type, field, size)
-AGGREGATE_FLATTEN_STRUCT(type, field)
-AGGREGATE_FLATTEN_STRUCT_ARRAY(type, field, size)</pre></div>
+<span class="pl-en">AGGREGATE_FLATTEN_TYPE</span>(type, field)
+<span class="pl-en">AGGREGATE_FLATTEN_TYPE_ARRAY</span>(type, field, size)
+<span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(type, field)
+<span class="pl-en">AGGREGATE_FLATTEN_STRUCT_ARRAY</span>(type, field, size)</pre></div>
 
 <p>Instead of pointer to variable we use the corresponding field name from within the structure.<br></p>
 
@@ -927,8 +927,8 @@ sizeof(struct figure): 16
 
 <span class="pl-en">FUNCTION_DEFINE_FLATTEN_STRUCT</span>(point,
     <span class="pl-en">AGGREGATE_FLATTEN_TYPE_ARRAY</span>(<span class="pl-k">struct</span> point*, other, ATTR(n));
-    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> point*, p, ATTR(other), ATTR(n),
-            FLATTEN_STRUCT(point, p);
+    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> point*, p, ATTR(other), <span class="pl-en">ATTR</span>(n),
+            <span class="pl-en">FLATTEN_STRUCT</span>(point, p);
     );
 );
 
@@ -1140,8 +1140,8 @@ $ examples/circular-out
 <span class="pl-en">FUNCTION_DEFINE_FLATTEN_STRUCT</span>(type,
     <span class="pl-en">AGGREGATE_FLATTEN_STRING</span>(name);
     <span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(type, next);
-    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, ATTR(internal), 4,
-        FLATTEN_STRUCT(internal_type, p);
+    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, <span class="pl-en">ATTR</span>(internal), 4,
+        <span class="pl-en">FLATTEN_STRUCT</span>(internal_type, p);
     );
 );
 
@@ -1281,8 +1281,8 @@ type_arr[0].name:   ['t'|'y'|'p'|'e'|'1'|0]
 <p>This process continues recursively for all recipes embedded into structure flattening recipes (and pointer flattening recipes, i.e. <code>FOREACH_POINTER</code>):<br></p>
 
 <div class="highlight highlight-source-c"><pre><span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(type, next);
-<span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, ATTR(internal), 4,
-    FLATTEN_STRUCT(internal_type, p);
+<span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, <span class="pl-en">ATTR</span>(internal), 4,
+    <span class="pl-en">FLATTEN_STRUCT</span>(internal_type, p);
 );</pre></div>
 
 <p>Each call creates another interval fragment of original memory (and corresponding copied memory data block). If memory fragment already exists (or partially exists) it is ignored (or another memory fragment that fills the remaining memory is created). For example flattening stage in our example looks like below (you can always check how flattening stage operates by invoking <code>flatten_set_debug_flag(1)</code> before the actual serialization):<br></p>
@@ -1656,8 +1656,8 @@ Similar thing happens for pointers:<br></p>
     <span class="pl-en">AGGREGATE_FLATTEN_STRING</span>(name);
     <span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(type, next);
     <span class="pl-en">AGGREGATE_FLATTEN_TYPE_ARRAY</span>(<span class="pl-k">struct</span> internal_type*, internal, <span class="pl-c1">4</span>);
-    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, ATTR(internal), 4,
-        FLATTEN_STRUCT(internal_type, p);
+    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, <span class="pl-en">ATTR</span>(internal), 4,
+        <span class="pl-en">FLATTEN_STRUCT</span>(internal_type, p);
     );
 );
 
@@ -1695,8 +1695,8 @@ Similar thing happens for pointers:<br></p>
     <span class="pl-en">AGGREGATE_FLATTEN_STRING</span>(name);
     <span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(type, next);
     <span class="pl-en">AGGREGATE_FLATTEN_TYPE_ARRAY</span>(<span class="pl-k">struct</span> internal_type*, internal, <span class="pl-c1">4</span>);
-    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, ATTR(internal), 4,
-        FLATTEN_STRUCT(internal_type, p);
+    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, <span class="pl-en">ATTR</span>(internal), 4,
+        <span class="pl-en">FLATTEN_STRUCT</span>(internal_type, p);
     );
 );</pre></div>
 
@@ -1709,8 +1709,8 @@ Similar thing happens for pointers:<br></p>
 <div class="highlight highlight-source-c"><pre><span class="pl-en">FUNCTION_DEFINE_FLATTEN_STRUCT</span>(type,
     <span class="pl-en">AGGREGATE_FLATTEN_STRING</span>(name);
     <span class="pl-en">AGGREGATE_FLATTEN_STRUCT</span>(type, next);
-    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, ATTR(internal), 4,
-        FLATTEN_STRUCT(internal_type, p);
+    <span class="pl-en">FOREACH_POINTER</span>(<span class="pl-k">struct</span> internal_type*, p, <span class="pl-en">ATTR</span>(internal), 4,
+        <span class="pl-en">FLATTEN_STRUCT</span>(internal_type, p);
     );
 );</pre></div>
 
