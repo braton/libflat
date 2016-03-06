@@ -1445,10 +1445,11 @@ we notice that the original pointer is located at offset 16 in the interval whic
 
 It is worth to mention that we don't need to be worried about flattening NULL pointers, we just ignore them. NULL pointer has the value 0 which can be preserved between original and flattened memory image and will have the same meaning after deserialization.
 
-For debug purposes it is possible to dump all addresses of internal structures using the "flatten_debug_info()" function. To use the debugging functions include the following declarations into the source code as follows:
+For debug purposes it is possible to dump all addresses of internal structures using the "flatten_debug_info()" function. To use debugging functions include the following declarations into the source code as follows:
 
-void flatten_debug_info();
-void flatten_set_debug_flag(int flag);
+void flatten_debug_info();  /* prints internal structure contents */
+void flatten_set_debug_flag(int flag);  /* prints debug information while flattening memory */
+void flatten_debug_memory(); /* prints flattened memory */
 
 @ Limitations
 
@@ -1560,7 +1561,10 @@ Such situations (using part of structure/pointer storage in other contexts) are 
 
 5. Libflat makes a copy of the original memory (i.e. bitwise copy) therefore flattening structures copies all the structure padding as well. This leads to the fact that after deserialization structure padding might be initialized differently as it would be if the structure had been initialized by compiler. This is reported by the Valgrind, however it's hard to imagine any other real-life consequences of this fact.
 
-@ Toubleshooting
+6. Libflat flattens memory by recursive invocation of provided recipes. For large trees, graphs or other massively linked data structures there might be situation that the process stack space runs out (stack is needed for recursive function call invocation). It can be solved by rewritting main algorithm in iterative fashion and maintain private allocated stack for its operation.
+
+
+@ Troubleshooting
 
 What to do when flattening fails? First thing to do is to check whether your use case falls into Libflat limitations (<LINK>). If not there are more possible scenarios that breaks the plateau.
 
@@ -1693,6 +1697,11 @@ FOR_ROOT_POINTER(&s,
     );
 );
 
+If Libflat magically fails with segmentation fault while flattening memory it's probable that the stack size of main process has just run out (as Libflat flattens memory by recursive invocation of provided recipes and needs stack space for recursive function call invocation). When that happens try to increase the process stack size and relaunch:
+
+$ ulimit -s 65536 # or any other number here in kilobytes
+
+
 @ Contribution
 
 There are number of ideas how to improve the Libflat. Some ideas are listed below.
@@ -1702,12 +1711,14 @@ There are number of ideas how to improve the Libflat. Some ideas are listed belo
 3. No tests has been done with C unions and adding such tests would be appreciated.
 4. Fixing limited structure/pointer overlays (see limitations/4).
 5. Adding root pointer to flattened memory image if not present (see troubleshooting).
-6. Currently Libflat doesn't support flattening pointers to functions. This functionality would be implemented using dynamic linker capabilities (dladdr on Linux and Windows equivalent) by translating function addresses to corresponding symbols and storing it in the final memory image.
-7. Currently Libflat API only allows to save entire memory image to single file. Consider enhancing the API to allow for creating and returning multiple flattened memory images for selected recipes.
-8. Currently there is no support for C++ classes (only C++ POD types can be flattened). Design and implementation of flattening and reconstructing C++ classes would be appreciated (unfortunately it seems impossible to do this in C++ standard way and taking advantage of platform/compilator dependent functionalities would probably be needed).
-9. Enable proper error handling instead of rough assertions.
-10. Overcoming problems with free/reallocations in the unflattened memory image (see limitations/3).
-11. More tests, error reports and bug fixes.
+6. Describe flatten image format.
+7. Currently Libflat doesn't support flattening pointers to functions. This functionality would be implemented using dynamic linker capabilities (dladdr on Linux and Windows equivalent) by translating function addresses to corresponding symbols and storing it in the final memory image.
+8. Currently Libflat API only allows to save entire memory image to single file. Consider enhancing the API to allow for creating and returning multiple flattened memory images for selected recipes.
+9. Currently there is no support for C++ classes (only C++ POD types can be flattened). Design and implementation of flattening and reconstructing C++ classes would be appreciated (unfortunately it seems impossible to do this in C++ standard way and taking advantage of platform/compilator dependent functionalities would probably be needed).
+10. Enable proper error handling instead of rough assertions.
+11. Overcoming problems with free/reallocations in the unflattened memory image (see limitations/3).
+12. Rewrite flattening algorithm in iterative fashion.
+13. More tests, error reports and bug fixes.
 
 @ Final word
 

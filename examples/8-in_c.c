@@ -3,7 +3,7 @@
 #include "libflat.h"
 
 struct internal_type {
-	int u:4;
+	int u :4;
 	char c;
 };
 
@@ -31,7 +31,7 @@ int main(void) {
 	assert(out);
 	flatten_init();
 
-	static struct internal_type u = { .u=1, .c='#' };
+	static struct internal_type u = { .u = 1, .c = '#' };
 
 	struct type type_arr = { .name="type1", .v=666, &type_arr, {&u,&u,0,0}  };
 

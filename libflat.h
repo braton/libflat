@@ -91,6 +91,16 @@ void unflatten_fini();
 #endif	/* _WIN32 */
 #endif /* __linux__ */
 
+#ifdef __linux__
+#include <alloca.h>
+#define ALLOCA(x)	alloca(x)
+#else
+#ifdef _WIN32
+#include <malloc.h>
+#define ALLOCA(x)	_malloca(x)
+#endif
+#endif
+
 struct _ALIGNAS(RB_NODE_ALIGN) rb_node {
 	uintptr_t  __rb_parent_color;
 	struct rb_node *rb_right;
@@ -146,7 +156,15 @@ void* root_pointer_seq(size_t index);
 extern struct interval_tree_node * interval_tree_iter_first(struct rb_root *root, uintptr_t start, uintptr_t last);
 extern struct rb_node* interval_tree_insert(struct interval_tree_node *node, struct rb_root *root);
 
-struct blstream;
+struct blstream {
+	struct blstream* next;
+	struct blstream* prev;
+	void* data;
+	size_t size;
+	size_t index;
+	size_t alignment;
+};
+
 struct blstream* binary_stream_insert_back(const void* data, size_t size, struct blstream* where);
 struct blstream* binary_stream_insert_front(const void* data, size_t size, struct blstream* where);
 struct blstream* binary_stream_append(const void* data, size_t size);
@@ -175,23 +193,35 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 }
 
 #define DBGM1(name,a1)					do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 ")\n"); } while(0)
+#define DBGF(name,F,FMT,P)				do { if (FLCTRL.debug_flag>=1) printf(#name "(" #F "[" FMT "])\n",P); } while(0)
 #define DBGM2(name,a1,a2)				do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 ")\n"); } while(0)
+#define DBGTF(name,T,F,FMT,P)			do { if (FLCTRL.debug_flag>=1) printf(#name "(" #T "," #F "[" FMT "])\n",P); } while(0)
+#define DBGTFMF(name,T,F,FMT,P,PF,FF)	do { if (FLCTRL.debug_flag>=1) printf(#name "(" #T "," #F "[" FMT "]," #PF "," #FF ")\n",P); } while(0)
+#define DBGTP(name,T,P)					do { if (FLCTRL.debug_flag>=1) printf(#name "(" #T "," #P "[%p])\n",P); } while(0)
 #define DBGM3(name,a1,a2,a3)			do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 "," #a3 ")\n"); } while(0)
 #define DBGM4(name,a1,a2,a3,a4)			do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 "," #a3 "," #a4 ")\n"); } while(0)
 
 #define ATTR(f)	((_ptr)->f)
 
 #define FLATTEN_STRUCT(T,p)	do {	\
-		DBGM2(FLATTEN_STRUCT,T,p);	\
+		DBGTP(FLATTEN_STRUCT,T,p);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_##T((p)));	\
 		}	\
 	} while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT(T,f)	do {	\
-		DBGM2(AGGREGATE_FLATTEN_STRUCT,T,f);	\
+		DBGTF(AGGREGATE_FLATTEN_STRUCT,T,f,"%p",(void*)ATTR(f));	\
     	if (ATTR(f)) {	\
-    		fixup_set_insert(__node,offsetof(_container_type,f),flatten_struct_##T(ATTR(f)));	\
+    		fixup_set_insert(__node,offsetof(_container_type,f),flatten_struct_##T((const struct T*)ATTR(f)));	\
+		}	\
+	} while(0)
+
+#define AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER(T,f,pf,ff)	do {	\
+		DBGTFMF(AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER,T,f,"%p",(void*)ATTR(f),pf,ff);	\
+		const struct T* _fp = pf((const struct T*)ATTR(f));	\
+    	if (_fp) {	\
+    		fixup_set_insert(__node,offsetof(_container_type,f),ff(flatten_struct_##T(_fp),(const struct T*)ATTR(f)));	\
 		}	\
 	} while(0)
 
@@ -224,7 +254,7 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 	} while(0)
 
 #define AGGREGATE_FLATTEN_STRING(f)   do {  \
-		DBGM1(AGGREGATE_FLATTEN_STRING,f);	\
+		DBGF(AGGREGATE_FLATTEN_STRING,f,"%p",(void*)ATTR(f));	\
         if (ATTR(f)) {   \
         	fixup_set_insert(__node,offsetof(_container_type,f),flatten_plain_type(ATTR(f),strmemlen(ATTR(f))));	\
         }   \
@@ -270,12 +300,15 @@ static inline struct flatten_pointer* flatten_struct_##FLTYPE##_array(const stru
     return _fp_first;	\
 }
 
+#define STRUCT_ALIGN(n)		do { _alignment=n; } while(0)
+
 #define FUNCTION_DEFINE_FLATTEN_STRUCT(FLTYPE,...)	\
 /* */		\
 			\
 struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 			\
 	typedef struct FLTYPE _container_type;	\
+	size_t _alignment = 0;	\
 			\
 	struct interval_tree_node *__node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
 	if (__node) {	\
@@ -307,6 +340,7 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 	}	\
 		\
 	__VA_ARGS__	\
+	__node->storage->alignment = _alignment;	\
     return make_flatten_pointer(__node,0);	\
 }
 

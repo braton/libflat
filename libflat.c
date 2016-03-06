@@ -138,6 +138,22 @@ void binary_stream_calculate_index() {
     while(p) {
     	struct blstream* cp = p;
     	p = p->next;
+    	size_t align=0;
+
+    	if (cp->alignment) {
+    		unsigned char* padding = ALLOCA(cp->alignment);
+    		memset(padding,0,cp->alignment);
+    		if (index==0) {
+    			align=cp->alignment;
+    		}
+    		else if (index%cp->alignment) {
+    			align=cp->alignment-(index%cp->alignment);
+    		}
+    		struct blstream* v = binary_stream_insert_front(padding,align,cp);
+    		v->index = index;
+    		index+=v->size;
+    	}
+
     	cp->index = index;
     	index+=cp->size;
     }
@@ -155,7 +171,7 @@ void binary_stream_destroy() {
 
 static void binary_stream_element_print(struct blstream* p) {
 	size_t i;
-	printf("(%zu){%zu}{%p}[ ",p->index,p->size,(void*)p);
+	printf("(%zu)(%zu){%zu}{%p}[ ",p->index,p->alignment,p->size,(void*)p);
 	for (i=0; i<p->size; ++i) {
 		printf("%02x ",((unsigned char*)(p->data))[i]);
 	}
@@ -245,6 +261,8 @@ struct fixup_set_node *fixup_set_search(uintptr_t v) {
 }
 
 int fixup_set_insert(struct interval_tree_node* node, size_t offset, struct flatten_pointer* ptr) {
+
+	//printf("@ fixup_set_insert: ( {%p:%zu} => {%p:%zu} )\n",node,offset,ptr->node,ptr->offset);
 
 	if (node==0) {
 		free(ptr);
@@ -659,4 +677,17 @@ void* root_pointer_seq(size_t index) {
 
 void flatten_set_debug_flag(int flag) {
 	FLCTRL.debug_flag = flag;
+}
+
+void flatten_debug_memory() {
+	unsigned char* m = FLATTEN_MEMORY_START;
+	printf("(%p)\n",m);
+	printf("[ ");
+	for (;m<FLATTEN_MEMORY_END;) {
+		printf("%02x ",*m);
+		++m;
+		if ((m-FLATTEN_MEMORY_START)%32==0)
+			printf("\n  ");
+	}
+	printf("]\n");
 }
