@@ -138,7 +138,7 @@ real    0m1.078s
 user    0m0.949s
 sys 0m0.128s
 ```
-Here you are. In 15 lines of code you've made full serialization of a large tree that takes more than 400MB of memory. Moreover you've read it back almost instantly!
+Here you are. In 15 lines of code you've made full serialization of a large tree that consumes more than 400MB of memory. Moreover you've read it back almost instantly!
 
 You can find the above (and lots of other) examples in the example directory.<br>
 
