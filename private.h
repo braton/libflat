@@ -12,6 +12,8 @@
 #endif
 #endif
 
+static const volatile char version[] = __LIBFLAT_VERSION__;
+
 #define TIME_MARK_START(start_marker)		\
 		struct timeval  tv_mark_##start_marker;	\
 		gettimeofday(&tv_mark_##start_marker, 0)

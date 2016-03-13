@@ -10,7 +10,8 @@ struct FLCONTROL FLCTRL = {
 		.rtail = 0,
 		.mem = 0,
 		.last_accessed_root=0,
-		.debug_flag=0
+		.debug_flag=0,
+		.option=0
 };
 
 static struct blstream* create_binary_stream_element(size_t size) {
@@ -559,8 +560,10 @@ int flatten_write(FILE* ff) {
     if (wr!=FLCTRL.HDR.ptr_count*sizeof(size_t)) return -1; else written+=wr;
     wr = binary_stream_write(ff);
     if (wr!=FLCTRL.HDR.memory_size) return -1; else written+=wr;
-    printf("# Flattening done. Summary:\n  Memory size: %zu bytes\n  Linked %zu pointers\n  Written %zu bytes\n",
-    		FLCTRL.HDR.memory_size, FLCTRL.HDR.ptr_count, written);
+    if ((FLCTRL.option&option_silent)==0) {
+		printf("# Flattening done. Summary:\n  Memory size: %zu bytes\n  Linked %zu pointers\n  Written %zu bytes\n",
+				FLCTRL.HDR.memory_size, FLCTRL.HDR.ptr_count, written);
+    }
     return 0;
 }
 
@@ -607,13 +610,17 @@ int unflatten_read(FILE* f) {
 	assert(FLCTRL.mem);
 	rd = fread(FLCTRL.mem,1,memsz,f);
 	if (rd!=memsz) return -1; else readin+=rd;
-	printf("# Unflattening done. Summary:\n");
-	TIME_CHECK_FMT(unfl_b,read_e,"  Image read time: %fs\n");
+	if ((FLCTRL.option&option_silent)==0) {
+		printf("# Unflattening done. Summary:\n");
+		TIME_CHECK_FMT(unfl_b,read_e,"  Image read time: %fs\n");
+	}
 	TIME_MARK_START(fix_b);
 	fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
-	TIME_CHECK_FMT(fix_b,fix_e,"  Fixing memory time: %fs\n");
-	TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
-	printf("  Total bytes read: %zu\n",readin);
+	if ((FLCTRL.option&option_silent)==0) {
+		TIME_CHECK_FMT(fix_b,fix_e,"  Fixing memory time: %fs\n");
+		TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
+		printf("  Total bytes read: %zu\n",readin);
+	}
 	return 0;
 }
 
@@ -677,6 +684,14 @@ void* root_pointer_seq(size_t index) {
 
 void flatten_set_debug_flag(int flag) {
 	FLCTRL.debug_flag = flag;
+}
+
+void flatten_set_option(int option) {
+	FLCTRL.option |= option;
+}
+
+void flatten_clear_option(int option) {
+	FLCTRL.option &= ~option;
 }
 
 void flatten_debug_memory() {

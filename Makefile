@@ -1,3 +1,5 @@
+__LIBFLAT_VERSION__:=0.1
+
 CC = gcc
 AR = ar
 LIBS = 
@@ -9,6 +11,7 @@ ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 CFLAGS += -Wall -Wextra 
 CFLAGS += -O2 -ggdb3
 CFLAGS += -MD
+CFLAGS += -D__LIBFLAT_VERSION__=\"$(__LIBFLAT_VERSION__)\"
 
 LIB_CFLAGS += -fPIC
 EXE_LDFLAGS +=
@@ -80,7 +83,16 @@ clean:
 	@echo "Cleaning up..."
 	$(RM) $(OBJ) $(LIB_OBJ) $(TEST_OBJ) $(LIB_DEP) $(DEP) $(TEST_DEP) $(OUT) $(EXAMPLE_OUT) $(EXAMPLE_DEP)
 
-.PHONY : all clean static shared test examples
+OUTHDR := $(OUTDYN:.so=.h)
+
+install:
+	@cp -f $(OUTHDR) /usr/local/include
+	@cp -f $(OUTDYN) /usr/local/lib/$(OUTDYN).$(__LIBFLAT_VERSION__)
+	@rm -f /usr/local/lib/$(OUTDYN)
+	@ln -s /usr/local/lib/$(OUTDYN).$(__LIBFLAT_VERSION__) /usr/local/lib/$(OUTDYN) 
+	@echo "Libflat successfully installed"
+
+.PHONY : all clean install static shared test examples
 .SILENT : 
 	
 -include $(LIB_DEP) $(DEP) $(TEST_DEP)

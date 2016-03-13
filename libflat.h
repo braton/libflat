@@ -4,6 +4,8 @@
 /*
 	Copyright (c) 2015-2016 Bartosz Zator
 
+	Libflat, version 0.1
+
 	This program is free software. Unless otherwise stated below,
 	the files in this project may be distributed under the terms of
 	the GNU General Public License version 2.
@@ -64,8 +66,6 @@
 #include <errno.h>
 #include <string.h>
 
-static const volatile char version[] = "0.1";
-
 /* Main interface functions */
 
 void flatten_init();
@@ -74,6 +74,13 @@ void flatten_fini();
 void unflatten_init();
 int unflatten_read(FILE* f);
 void unflatten_fini();
+
+enum flatten_option {
+	option_silent = 0x01
+};
+
+void flatten_set_option(int option);
+void flatten_clear_option(int option);
 
 /* Implementation */
 
@@ -142,6 +149,7 @@ struct FLCONTROL {
 	struct root_addrnode* rtail;
 	struct root_addrnode* last_accessed_root;
 	int debug_flag;
+	unsigned long option;
 	void* mem;
 };
 
