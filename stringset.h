@@ -1,8 +1,7 @@
 #ifndef STRINGSET_H_
 #define STRINGSET_H_
 
-#include "libflat.h"
-#include "private.h"
+#include "rbtree.h"
 
 static struct rb_root stringset_root = RB_ROOT;
 

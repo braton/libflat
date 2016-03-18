@@ -108,6 +108,16 @@ void flatten_clear_option(int option);
 #endif
 #endif
 
+#ifdef __linux__
+#define container_of(ptr, type, member) ({			\
+	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+#else
+#ifdef _WIN32
+#define container_of(ptr, type, member) (type *)( (char *)(ptr) - offsetof(type,member) )
+#endif
+#endif
+
 struct _ALIGNAS(RB_NODE_ALIGN) rb_node {
 	uintptr_t  __rb_parent_color;
 	struct rb_node *rb_right;

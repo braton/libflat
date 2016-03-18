@@ -1,4 +1,4 @@
-__LIBFLAT_VERSION__:=0.1
+__LIBFLAT_VERSION__:=$(shell grep "Libflat, version " libflat.h | python -c "import sys; print sys.stdin.read().split(\"\\n\")[0].split()[-1]")
 
 CC = gcc
 AR = ar
@@ -36,9 +36,11 @@ TEST_DEP := $(TEST_SRC:.c=.d)
 OUTLIB = libflat.a
 OUTDYN = libflat.so
 OUTTEST = flattest
+MAKEFILE = Makefile
 
 OUT := $(OUTLIB) $(OUTDYN) $(OUTTEST)
-all: $(OUT) 
+all: $(OUT)
+	@echo "Built version $(__LIBFLAT_VERSION__)"
 
 static: $(OUTLIB)
 shared: $(OUTDYN)
@@ -71,11 +73,11 @@ $(OUTTEST): $(TEST_OBJ) $(OUTDYN)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 $(LIB_OBJ): CFLAGS += $(LIB_CFLAGS)
-$(LIB_OBJ): %.lib.o : %.c
+$(LIB_OBJ): %.lib.o : %.c $(MAKEFILE)
 	@echo "  [CC (pic)]   $@"
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJ) $(TEST_OBJ): %.o : %.c
+$(OBJ) $(TEST_OBJ): %.o : %.c $(MAKEFILE)
 	@echo "  [CC]   $@"
 	$(CC) $(CFLAGS) -c $< -o $@
 
