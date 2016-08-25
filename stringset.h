@@ -33,7 +33,7 @@ static struct string_node* stringset_search(const char* s) {
 static int stringset_insert(const char* s) {
 
 	struct string_node* data = calloc(1,sizeof(struct string_node));
-	data->s = s;
+	data->s = strdup(s);
 	struct rb_node **new = &(stringset_root.rb_node), *parent = 0;
 
 	/* Figure out where to put new node */

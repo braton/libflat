@@ -1,0 +1,33 @@
+TODO:
+----------------------------------------------------------------
+version++
+all tests in main for added features
+cofnac rzutowanie field'a w strukturze
+
+@ Advanced features
+
+FOR_POINTER to troubleshooting
+
+* Limitations => pointers computed from other values (+ example) : need to write recipes by hand
+Wymog pamieci dla struktury by byla aligned (+ example) + implement in all macros
+Field modifier for structs (MIXED POINTER macro) + implement in all macros
+
+Full README example
+Finish README
+
+stringset-in_c.c => alternative way to dump mixed structures
+
+fix libflat (alloca)
+finish README.md (add how to contribute etc.)
+add section with API
+
+install libflat:
+sudo cp ~/Desktop/F/libflat.h /usr/local/include
+sudo cp ~/Desktop/F/libflat.so /usr/local/lib/libflat.so.0.1
+sudo ln -s /usr/local/lib/libflat.so.0.1 /usr/local/lib/libflat.so
+sudo ldconfig
+napisac man'a
+
+check example after fixing stringset.h
+Libflat alloca in loop
+----------------------------------------------------------------
