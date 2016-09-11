@@ -223,11 +223,13 @@ void binary_stream_update_pointers() {
 	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
 	int count=0;
 	while(p) {
-    	struct fixup_set_node* node = (struct fixup_set_node*)p;
-    	void* newptr = (unsigned char*)node->ptr->node->storage->index+node->ptr->offset;
-    	memcpy(&((unsigned char*)node->inode->storage->data)[node->offset],&newptr,sizeof(void*));
-    	p = rb_next(p);
-    	count++;
+	    struct fixup_set_node* node = (struct fixup_set_node*)p;
+	    void* newptr = (unsigned char*)node->ptr->node->storage->index+node->ptr->offset;
+	    if (FLCTRL.debug_flag&2) printf("@ ptr update at ((%p)%p:%zu) : %p => %p\n",node->inode,(void*)node->inode->start,node->offset,
+	            newptr,(void*)(((unsigned char*)node->inode->storage->data)+node->offset));
+	    memcpy(&((unsigned char*)node->inode->storage->data)[node->offset],&newptr,sizeof(void*));
+	    p = rb_next(p);
+	    count++;
     }
 }
 
@@ -528,6 +530,16 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 }
 
 void flatten_init() {
+    FLCTRL.bhead = 0;
+    FLCTRL.btail = 0;
+    FLCTRL.fixup_set_root.rb_node = 0;
+    FLCTRL.imap_root.rb_node = 0;
+    FLCTRL.rhead = 0;
+    FLCTRL.rtail = 0;
+    FLCTRL.mem = 0;
+    FLCTRL.last_accessed_root=0;
+    FLCTRL.debug_flag=0;
+    FLCTRL.option=0;
 }
 
 int flatten_write(FILE* ff) {
@@ -543,11 +555,12 @@ int flatten_write(FILE* ff) {
     if (wr!=1) return -1; written+=sizeof(struct flatten_header);
     struct root_addrnode* p = FLCTRL.rhead;
     while(p) {
-    	size_t root_addr_offset;
-    	if (p->root_addr) {
-    		struct interval_tree_node *node = PTRNODE(p->root_addr);
-			assert(node!=0);
-			root_addr_offset = node->storage->index + (p->root_addr-node->start);
+        size_t root_addr_offset;
+        if (p->root_addr) {
+            struct interval_tree_node *node = PTRNODE(p->root_addr);
+            DBGM("@ root_addr: %p node: %p\n",(void*)p->root_addr,node);
+            assert(node!=0);
+            root_addr_offset = node->storage->index + (p->root_addr-node->start);
     	}
     	else {
     		root_addr_offset = (size_t)-1;
@@ -586,6 +599,16 @@ void flatten_fini() {
 }    
 
 void unflatten_init() {
+    FLCTRL.bhead = 0;
+    FLCTRL.btail = 0;
+    FLCTRL.fixup_set_root.rb_node = 0;
+    FLCTRL.imap_root.rb_node = 0;
+    FLCTRL.rhead = 0;
+    FLCTRL.rtail = 0;
+    FLCTRL.mem = 0;
+    FLCTRL.last_accessed_root=0;
+    FLCTRL.debug_flag=0;
+    FLCTRL.option=0;
 }
 
 int unflatten_read(FILE* f) {
@@ -605,8 +628,11 @@ int unflatten_read(FILE* f) {
 		if (rd!=1) return -1; else readin+=sizeof(size_t);
 		root_addr_append(root_addr_offset);
 	}
+	DBGM("@ ptr count: %zu\n",FLCTRL.HDR.ptr_count);
+	DBGM("@ root_addr count: %zu\n",FLCTRL.HDR.root_addr_count);
 	size_t memsz = FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
 	FLCTRL.mem = malloc(memsz);
+	DBGM("@ flatten memory: %p:%p:%zu\n",FLCTRL.mem,FLCTRL.mem+memsz-1,memsz);
 	assert(FLCTRL.mem);
 	rd = fread(FLCTRL.mem,1,memsz,f);
 	if (rd!=memsz) return -1; else readin+=rd;

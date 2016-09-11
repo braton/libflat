@@ -210,14 +210,15 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 	return count;
 }
 
-#define DBGM1(name,a1)					do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 ")\n"); } while(0)
-#define DBGF(name,F,FMT,P)				do { if (FLCTRL.debug_flag>=1) printf(#name "(" #F "[" FMT "])\n",P); } while(0)
-#define DBGM2(name,a1,a2)				do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 ")\n"); } while(0)
-#define DBGTF(name,T,F,FMT,P)			do { if (FLCTRL.debug_flag>=1) printf(#name "(" #T "," #F "[" FMT "])\n",P); } while(0)
-#define DBGTFMF(name,T,F,FMT,P,PF,FF)	do { if (FLCTRL.debug_flag>=1) printf(#name "(" #T "," #F "[" FMT "]," #PF "," #FF ")\n",P); } while(0)
-#define DBGTP(name,T,P)					do { if (FLCTRL.debug_flag>=1) printf(#name "(" #T "," #P "[%p])\n",P); } while(0)
-#define DBGM3(name,a1,a2,a3)			do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 "," #a3 ")\n"); } while(0)
-#define DBGM4(name,a1,a2,a3,a4)			do { if (FLCTRL.debug_flag>=1) printf(#name "(" #a1 "," #a2 "," #a3 "," #a4 ")\n"); } while(0)
+#define DBGM(...)						do { if (FLCTRL.debug_flag&1) printf(__VA_ARGS__); } while(0)
+#define DBGM1(name,a1)					do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 ")\n"); } while(0)
+#define DBGF(name,F,FMT,P)				do { if (FLCTRL.debug_flag&1) printf(#name "(" #F "[" FMT "])\n",P); } while(0)
+#define DBGM2(name,a1,a2)				do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 ")\n"); } while(0)
+#define DBGTF(name,T,F,FMT,P)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #F "[" FMT "])\n",P); } while(0)
+#define DBGTFMF(name,T,F,FMT,P,PF,FF)	do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #F "[" FMT "]," #PF "," #FF ")\n",P); } while(0)
+#define DBGTP(name,T,P)					do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #P "[%p])\n",P); } while(0)
+#define DBGM3(name,a1,a2,a3)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 "," #a3 ")\n"); } while(0)
+#define DBGM4(name,a1,a2,a3,a4)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 "," #a3 "," #a4 ")\n"); } while(0)
 
 #define ATTR(f)	((_ptr)->f)
 
@@ -228,12 +229,26 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 		}	\
 	} while(0)
 
+#define FLATTEN_STRUCT_TYPE(T,p)	do {	\
+		DBGTP(FLATTEN_STRUCT_TYPE,T,p);	\
+		if (p) {   \
+			fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_type_##T((p)));	\
+		}	\
+	} while(0)
+
 #define AGGREGATE_FLATTEN_STRUCT(T,f)	do {	\
 		DBGTF(AGGREGATE_FLATTEN_STRUCT,T,f,"%p",(void*)ATTR(f));	\
     	if (ATTR(f)) {	\
     		fixup_set_insert(__node,offsetof(_container_type,f),flatten_struct_##T((const struct T*)ATTR(f)));	\
 		}	\
 	} while(0)
+
+#define AGGREGATE_FLATTEN_STRUCT_TYPE(T,f)	do {	\
+        DBGTF(AGGREGATE_FLATTEN_STRUCT_TYPE,T,f,"%p",(void*)ATTR(f));	\
+        if (ATTR(f)) {	\
+            fixup_set_insert(__node,offsetof(_container_type,f),flatten_struct_type_##T((const T*)ATTR(f)));	\
+        }	\
+    } while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER(T,f,pf,ff)	do {	\
 		DBGTFMF(AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER,T,f,"%p",(void*)ATTR(f),pf,ff);	\
@@ -243,10 +258,25 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 		}	\
 	} while(0)
 
+#define AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER(T,f,pf,ff)	do {	\
+        DBGTFMF(AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER,T,f,"%p",(void*)ATTR(f),pf,ff);	\
+        const T* _fp = pf((const T*)ATTR(f));	\
+        if (_fp) {	\
+            fixup_set_insert(__node,offsetof(_container_type,f),ff(flatten_struct_type_##T(_fp),(const T*)ATTR(f)));	\
+        }	\
+    } while(0)
+
 #define FLATTEN_STRUCT_ARRAY(T,p,n)	do {	\
 		DBGM3(FLATTEN_STRUCT_ARRAY,T,p,n);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_##T##_array((p),(n)));	\
+		}	\
+	} while(0)
+
+#define FLATTEN_STRUCT_TYPE_ARRAY(T,p,n)	do {	\
+		DBGM3(FLATTEN_STRUCT_TYPE_ARRAY,T,p,n);	\
+		if (p) {   \
+			fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_type_##T##_array((p),(n)));	\
 		}	\
 	} while(0)
 
@@ -263,6 +293,20 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 		    fixup_set_insert(__node,offsetof(_container_type,f),_fp_first);	\
 		}	\
 	} while(0)
+
+#define AGGREGATE_FLATTEN_STRUCT_TYPE_ARRAY(T,f,n)	do {	\
+        DBGM3(AGGREGATE_FLATTEN_STRUCT_TYPE_ARRAY,T,f,n);	\
+        if (ATTR(f)) {	\
+            size_t _i;	\
+            void* _fp_first=0;	\
+            for (_i=0; _i<(n); ++_i) {	\
+                void* _fp = (void*)flatten_struct_type_##T(ATTR(f)+_i);	\
+                if (!_fp_first) _fp_first=_fp;	\
+                else free(_fp);	\
+            }	\
+            fixup_set_insert(__node,offsetof(_container_type,f),_fp_first);	\
+        }	\
+    } while(0)
 
 #define FLATTEN_STRING(p)	do {	\
 		DBGM1(FLATTEN_STRING,p);	\
@@ -318,40 +362,98 @@ static inline struct flatten_pointer* flatten_struct_##FLTYPE##_array(const stru
     return _fp_first;	\
 }
 
+#define INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_TYPE_ARRAY(FLTYPE)	\
+static inline struct flatten_pointer* flatten_struct_type_##FLTYPE##_array(const FLTYPE* _ptr, size_t n) {	\
+    size_t _i;	\
+	void* _fp_first=0;	\
+	for (_i=0; _i<n; ++_i) {	\
+		void* _fp = (void*)flatten_struct_type_##FLTYPE(_ptr+_i);	\
+		if (!_fp_first) _fp_first=_fp;	\
+		else free(_fp);	\
+	}	\
+    return _fp_first;	\
+}
+
 #define STRUCT_ALIGN(n)		do { _alignment=n; } while(0)
 
 #define FUNCTION_DEFINE_FLATTEN_STRUCT(FLTYPE,...)	\
 /* */		\
 			\
-struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
+struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {    \
+            \
+    typedef struct FLTYPE _container_type;  \
+    size_t _alignment = 0;  \
+            \
+    struct interval_tree_node *__node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(struct FLTYPE)-1);    \
+    if (__node) {   \
+        assert(__node->start==(uint64_t)_ptr);  \
+        assert(__node->last==(uint64_t)_ptr+sizeof(struct FLTYPE)-1);   \
+        return make_flatten_pointer(__node,0);  \
+    }   \
+    else {  \
+        __node = calloc(1,sizeof(struct interval_tree_node));   \
+        assert(__node!=0);  \
+        __node->start = (uint64_t)_ptr; \
+        __node->last = (uint64_t)_ptr + sizeof(struct FLTYPE)-1;    \
+        struct blstream* storage;   \
+        struct rb_node* rb = interval_tree_insert(__node, &FLCTRL.imap_root);   \
+        struct rb_node* prev = rb_prev(rb); \
+        if (prev) { \
+            storage = binary_stream_insert_back(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)prev)->storage);    \
+        }   \
+        else {  \
+            struct rb_node* next = rb_next(rb); \
+            if (next) { \
+                storage = binary_stream_insert_front(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)next)->storage);   \
+            }   \
+            else {  \
+                storage = binary_stream_append(_ptr,sizeof(struct FLTYPE)); \
+            }   \
+        }   \
+        __node->storage = storage;  \
+    }   \
+        \
+    __VA_ARGS__ \
+    __node->storage->alignment = _alignment;    \
+    return make_flatten_pointer(__node,0);  \
+}
+
+#define FUNCTION_DECLARE_FLATTEN_STRUCT(FLTYPE)	\
+	extern struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE*);	\
+	INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY(FLTYPE)
+
+#define FUNCTION_DEFINE_FLATTEN_STRUCT_TYPE(FLTYPE,...)	\
+/* */		\
 			\
-	typedef struct FLTYPE _container_type;	\
+struct flatten_pointer* flatten_struct_type_##FLTYPE(const FLTYPE* _ptr) {	\
+			\
+	typedef FLTYPE _container_type;	\
 	size_t _alignment = 0;	\
 			\
-	struct interval_tree_node *__node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
+	struct interval_tree_node *__node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(FLTYPE)-1);	\
 	if (__node) {	\
 		assert(__node->start==(uint64_t)_ptr);	\
-		assert(__node->last==(uint64_t)_ptr+sizeof(struct FLTYPE)-1);	\
+		assert(__node->last==(uint64_t)_ptr+sizeof(FLTYPE)-1);	\
 		return make_flatten_pointer(__node,0);	\
 	}	\
 	else {	\
 		__node = calloc(1,sizeof(struct interval_tree_node));	\
 		assert(__node!=0);	\
 		__node->start = (uint64_t)_ptr;	\
-		__node->last = (uint64_t)_ptr + sizeof(struct FLTYPE)-1;	\
+		__node->last = (uint64_t)_ptr + sizeof(FLTYPE)-1;	\
 		struct blstream* storage;	\
 		struct rb_node* rb = interval_tree_insert(__node, &FLCTRL.imap_root);	\
 		struct rb_node* prev = rb_prev(rb);	\
 		if (prev) {	\
-			storage = binary_stream_insert_back(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)prev)->storage);	\
+			storage = binary_stream_insert_back(_ptr,sizeof(FLTYPE),((struct interval_tree_node*)prev)->storage);	\
 		}	\
 		else {	\
 			struct rb_node* next = rb_next(rb);	\
 			if (next) {	\
-				storage = binary_stream_insert_front(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)next)->storage);	\
+				storage = binary_stream_insert_front(_ptr,sizeof(FLTYPE),((struct interval_tree_node*)next)->storage);	\
 			}	\
 			else {	\
-				storage = binary_stream_append(_ptr,sizeof(struct FLTYPE));	\
+				storage = binary_stream_append(_ptr,sizeof(FLTYPE));	\
 			}	\
 		}	\
 		__node->storage = storage;	\
@@ -362,9 +464,9 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
     return make_flatten_pointer(__node,0);	\
 }
 
-#define FUNCTION_DECLARE_FLATTEN_STRUCT(FLTYPE)	\
-	extern struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE*);	\
-	INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY(FLTYPE)
+#define FUNCTION_DECLARE_FLATTEN_STRUCT_TYPE(FLTYPE)	\
+	extern struct flatten_pointer* flatten_struct_type_##FLTYPE(const FLTYPE*);	\
+	INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_TYPE_ARRAY(FLTYPE)
 
 #define FOREACH_POINTER(PTRTYPE,v,p,s,...)	do {	\
 		DBGM4(FOREACH_POINTER,PTRTYPE,v,p,s);	\
@@ -379,6 +481,7 @@ struct flatten_pointer* flatten_struct_##FLTYPE(const struct FLTYPE* _ptr) {	\
 			}	\
 		}	\
 	} while(0)
+
 
 #define FOR_POINTER(PTRTYPE,v,p,...)	do {	\
 		DBGM3(FOR_POINTER,PTRTYPE,v,p);	\

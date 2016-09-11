@@ -37,6 +37,9 @@ static const volatile char version[] = __LIBFLAT_VERSION__;
 #define FLATTEN_MAGIC 0x464c415454454e00ULL
 
 /* Private debugging facilities. In order to use them include their prototypes in the source file */
+/* 0001 : debug flattening stage
+ * 0002 : debug memory fixing
+ */
 void flatten_debug_info();
 void flatten_set_debug_flag(int flag);
 void flatten_debug_memory();
