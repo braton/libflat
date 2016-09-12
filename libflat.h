@@ -468,6 +468,84 @@ struct flatten_pointer* flatten_struct_type_##FLTYPE(const FLTYPE* _ptr) {	\
 	extern struct flatten_pointer* flatten_struct_type_##FLTYPE(const FLTYPE*);	\
 	INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_TYPE_ARRAY(FLTYPE)
 
+
+
+
+
+
+
+
+
+
+
+
+
+#define FUNCTION_DEFINE_FLATTEN_STRUCT_ITER(FLTYPE,...)  \
+/* */       \
+            \
+struct flatten_pointer* flatten_struct_iter_##FLTYPE(const struct FLTYPE* _ptr) {    \
+            \
+    typedef struct FLTYPE _container_type;  \
+    size_t _alignment = 0;  \
+            \
+    struct interval_tree_node *__node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(struct FLTYPE)-1);    \
+    if (__node) {   \
+        assert(__node->start==(uint64_t)_ptr);  \
+        assert(__node->last==(uint64_t)_ptr+sizeof(struct FLTYPE)-1);   \
+        return make_flatten_pointer(__node,0);  \
+    }   \
+    else {  \
+        __node = calloc(1,sizeof(struct interval_tree_node));   \
+        assert(__node!=0);  \
+        __node->start = (uint64_t)_ptr; \
+        __node->last = (uint64_t)_ptr + sizeof(struct FLTYPE)-1;    \
+        struct blstream* storage;   \
+        struct rb_node* rb = interval_tree_insert(__node, &FLCTRL.imap_root);   \
+        struct rb_node* prev = rb_prev(rb); \
+        if (prev) { \
+            storage = binary_stream_insert_back(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)prev)->storage);    \
+        }   \
+        else {  \
+            struct rb_node* next = rb_next(rb); \
+            if (next) { \
+                storage = binary_stream_insert_front(_ptr,sizeof(struct FLTYPE),((struct interval_tree_node*)next)->storage);   \
+            }   \
+            else {  \
+                storage = binary_stream_append(_ptr,sizeof(struct FLTYPE)); \
+            }   \
+        }   \
+        __node->storage = storage;  \
+    }   \
+        \
+    __VA_ARGS__ \
+    __node->storage->alignment = _alignment;    \
+    return make_flatten_pointer(__node,0);  \
+}
+
+#define FLATTEN_STRUCT_ITER(T,p) do {    \
+        DBGTP(FLATTEN_STRUCT_ITER,T,p);  \
+        if (p) {   \
+            fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_iter_##T((p)));  \
+        }   \
+    } while(0)
+
+#define AGGREGATE_FLATTEN_STRUCT_ITER(T,f)   do {    \
+        DBGTF(AGGREGATE_FLATTEN_STRUCT_ITER,T,f,"%p",(void*)ATTR(f));    \
+        if (ATTR(f)) {  \
+            /*fixup_set_insert(__node,offsetof(_container_type,f),flatten_struct_iter_##T((const struct T*)ATTR(f)));*/  \
+            /*queue_push_back();*/  \
+        }   \
+    } while(0)
+
+
+
+
+
+
+
+
+
+
 #define FOREACH_POINTER(PTRTYPE,v,p,s,...)	do {	\
 		DBGM4(FOREACH_POINTER,PTRTYPE,v,p,s);	\
 		if (p) {	\

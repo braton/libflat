@@ -49,11 +49,11 @@ test: $(OUTTEST)
 examples: $(EXAMPLE_OUT)
 
 define compile_example
-$(1): LDFLAGS += $(EXE_LDFLAGS) -lm
+$(1): LDFLAGS += $(EXE_LDFLAGS) -lm -lflat
 $(1): CFLAGS += -I$(ROOT_DIR) -Wno-unused-local-typedefs -Wno-unused-function
 $(1): $(addsuffix .c,$(1)) $(OUTDYN)
 	@echo "  [LD]   $$@"
-	$$(CC) $$(CFLAGS) $$^ $$(LDFLAGS) -o $$@
+	$$(CC) $$(CFLAGS) $$(addsuffix .c,$$@) $$(LDFLAGS) -o $$@
 endef
 
 $(foreach example,$(EXAMPLE_OUT),$(eval $(call compile_example,$(example))))
@@ -98,4 +98,4 @@ install:
 .SILENT : 
 	
 -include $(LIB_DEP) $(DEP) $(TEST_DEP)
--include $($(EXAMPLE_SRC):.c=.d)
+-include $(EXAMPLE_DEP)

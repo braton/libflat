@@ -233,6 +233,24 @@ void binary_stream_update_pointers() {
     }
 }
 
+
+#if 0
+struct flatten_job {
+    struct interval_tree_node* node;
+    size_t offset;
+    struct base* ptr;
+    flatten_struct_t fun;
+};
+#endif
+
+
+
+
+
+
+
+
+
 #define ADDR_KEY(p)	((p)->inode->start + (p)->offset)
 
 static struct fixup_set_node* create_fixup_set_node_element(struct interval_tree_node* node, size_t offset, struct flatten_pointer* ptr) {
