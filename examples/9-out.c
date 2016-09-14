@@ -17,6 +17,7 @@ int main(void) {
 	assert(unflatten_read(in) == 0);
 
 	struct pointer* p = ROOT_POINTER_NEXT(struct pointer*);
+	(void)p;
 
 	unflatten_fini();
 	fclose(in);

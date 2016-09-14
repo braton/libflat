@@ -68,17 +68,6 @@ struct fixup_set_node {
 	struct flatten_pointer* ptr;
 };
 
-struct base {};
-
-typedef struct flatten_pointer* (*flatten_struct_t)(const struct base*);
-
-struct flatten_job {
-    struct interval_tree_node* node;
-    size_t offset;
-    struct base* ptr;
-    flatten_struct_t fun;
-};
-
 struct fixup_set_node* fixup_set_search(uintptr_t v);
 void fixup_set_print();
 size_t fixup_set_count();

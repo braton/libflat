@@ -142,7 +142,7 @@ void binary_stream_calculate_index() {
     	size_t align=0;
 
     	if (cp->alignment) {
-    		unsigned char* padding = ALLOCA(cp->alignment);
+    		unsigned char* padding = malloc(cp->alignment);
     		memset(padding,0,cp->alignment);
     		if (index==0) {
     			align=cp->alignment;
@@ -153,6 +153,7 @@ void binary_stream_calculate_index() {
     		struct blstream* v = binary_stream_insert_front(padding,align,cp);
     		v->index = index;
     		index+=v->size;
+    		free(padding);
     	}
 
     	cp->index = index;
@@ -233,23 +234,74 @@ void binary_stream_update_pointers() {
     }
 }
 
+void bqueue_init(struct bqueue* q, size_t block_size) {
 
-#if 0
-struct flatten_job {
-    struct interval_tree_node* node;
-    size_t offset;
-    struct base* ptr;
-    flatten_struct_t fun;
-};
-#endif
+    q->block_size = block_size;
+    q->size = 0;
+    q->front_block = malloc(block_size+sizeof(struct queue_block*));
+    q->front_block->next = 0;
+    q->back_block = q->front_block;
+    q->front_index=0;
+    q->back_index=0;
+}
 
+void bqueue_destroy(struct bqueue* q) {
 
+    struct queue_block* back = q->back_block;
+    while(back) {
+        struct queue_block* tmp = back;
+        back = back->next;
+        free(tmp);
+    }
+}
 
+int bqueue_empty(struct bqueue* q) {
 
+    return q->size == 0;
+}
 
+void bqueue_push_back(struct bqueue* q, const void* m, size_t s) {
 
+    size_t copied = 0;
+    while(s>0) {
+        size_t avail_size = q->block_size-q->front_index;
+        size_t copy_size = (s>avail_size)?(avail_size):(s);
+        memcpy(q->front_block->data+q->front_index,m+copied,copy_size);
+        copied+=copy_size;
+        if (s>=avail_size) {
+            s=s-avail_size;
+            struct queue_block* new_block = malloc(q->block_size+sizeof(struct queue_block*));
+            new_block->next = 0;
+            q->front_block->next = new_block;
+            q->front_block = new_block;
+        }
+        else s=0;
+        q->front_index = (q->front_index+copy_size)%q->block_size;
+    }
+    q->size+=copied;
+}
 
+void bqueue_pop_front(struct bqueue* q, void* m, size_t s) {
 
+    assert(q->size>=s && "bqueue underflow");
+    size_t copied = 0;
+
+    while(s>0) {
+        size_t avail_size = q->block_size-q->back_index;
+        size_t copy_size = (s>avail_size)?(avail_size):(s);
+        memcpy(m+copied,q->back_block->data+q->back_index,copy_size);
+        copied+=copy_size;
+        if (s>=avail_size) {
+            s=s-avail_size;
+            struct queue_block* tmp = q->back_block;
+            q->back_block = q->back_block->next;
+            free(tmp);
+        }
+        else s=0;
+        q->back_index = (q->back_index+copy_size)%q->block_size;
+    }
+    q->size-=copied;
+}
 
 #define ADDR_KEY(p)	((p)->inode->start + (p)->offset)
 

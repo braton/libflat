@@ -189,6 +189,43 @@ struct blstream* binary_stream_append(const void* data, size_t size);
 struct rb_node *rb_next(const struct rb_node *node);
 struct rb_node *rb_prev(const struct rb_node *node);
 
+#define DEFAULT_ITER_QUEUE_SIZE (1024*1024*8)
+
+struct queue_block {
+    struct queue_block* next;
+    unsigned char data[];
+};
+
+struct bqueue {
+    size_t block_size;
+    size_t size;
+    struct queue_block* front_block;
+    size_t front_index;
+    struct queue_block* back_block;
+    size_t back_index;
+};
+
+void bqueue_init(struct bqueue* q, size_t block_size);
+void bqueue_destroy(struct bqueue* q);
+int bqueue_empty(struct bqueue* q);
+void bqueue_push_back(struct bqueue* q, const void* m, size_t s);
+void bqueue_pop_front(struct bqueue* q, void* m, size_t s);
+
+struct flatten_base {};
+
+typedef struct flatten_pointer* (*flatten_struct_t)(const struct flatten_base*, struct bqueue*);
+typedef struct flatten_pointer* (*flatten_struct_mixed_convert_t)(struct flatten_pointer*, const struct flatten_base*);
+
+struct flatten_job {
+    struct interval_tree_node* node;
+    size_t offset;
+    struct flatten_base* ptr;
+    flatten_struct_t fun;
+    /* Mixed pointer support */
+    const struct flatten_base* fp;
+    flatten_struct_mixed_convert_t convert;
+};
+
 static inline struct flatten_pointer* make_flatten_pointer(struct interval_tree_node* node, size_t offset) {
 	struct flatten_pointer* v = malloc(sizeof(struct flatten_pointer));
 	assert(v!=0);
@@ -483,7 +520,7 @@ struct flatten_pointer* flatten_struct_type_##FLTYPE(const FLTYPE* _ptr) {	\
 #define FUNCTION_DEFINE_FLATTEN_STRUCT_ITER(FLTYPE,...)  \
 /* */       \
             \
-struct flatten_pointer* flatten_struct_iter_##FLTYPE(const struct FLTYPE* _ptr) {    \
+struct flatten_pointer* flatten_struct_iter_##FLTYPE(const struct FLTYPE* _ptr, struct bqueue* __q) {    \
             \
     typedef struct FLTYPE _container_type;  \
     size_t _alignment = 0;  \
@@ -525,19 +562,49 @@ struct flatten_pointer* flatten_struct_iter_##FLTYPE(const struct FLTYPE* _ptr) 
 #define FLATTEN_STRUCT_ITER(T,p) do {    \
         DBGTP(FLATTEN_STRUCT_ITER,T,p);  \
         if (p) {   \
-            fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_iter_##T((p)));  \
+            struct bqueue bq;   \
+            bqueue_init(&bq,DEFAULT_ITER_QUEUE_SIZE);   \
+            fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_iter_##T(p,&bq));  \
+            while(!bqueue_empty(&bq)) { \
+                struct flatten_job __job;   \
+                bqueue_pop_front(&bq,&__job,sizeof(struct flatten_job));    \
+                if (!__job.convert) \
+                    fixup_set_insert(__job.node,__job.offset,(__job.fun)(__job.ptr,&bq));  \
+                else    \
+                    fixup_set_insert(__job.node,__job.offset,__job.convert((__job.fun)(__job.fp,&bq),__job.ptr));  \
+            }   \
+            bqueue_destroy(&bq);    \
         }   \
     } while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_ITER(T,f)   do {    \
         DBGTF(AGGREGATE_FLATTEN_STRUCT_ITER,T,f,"%p",(void*)ATTR(f));    \
         if (ATTR(f)) {  \
-            /*fixup_set_insert(__node,offsetof(_container_type,f),flatten_struct_iter_##T((const struct T*)ATTR(f)));*/  \
-            /*queue_push_back();*/  \
+            struct flatten_job __job;   \
+            __job.node = __node;    \
+            __job.offset = offsetof(_container_type,f); \
+            __job.ptr = (struct flatten_base*)ATTR(f);    \
+            __job.fun = (flatten_struct_t)&flatten_struct_iter_##T;    \
+            __job.fp = 0;   \
+            __job.convert = 0;  \
+            bqueue_push_back(__q,&__job,sizeof(struct flatten_job));    \
         }   \
     } while(0)
 
-
+#define AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER_ITER(T,f,pf,ff)   do {    \
+        DBGTFMF(AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER_ITER,T,f,"%p",(void*)ATTR(f),pf,ff);  \
+        const struct T* _fp = pf((const struct T*)ATTR(f)); \
+        if (_fp) {  \
+            struct flatten_job __job;   \
+            __job.node = __node;    \
+            __job.offset = offsetof(_container_type,f); \
+            __job.ptr = (struct flatten_base*)ATTR(f);    \
+            __job.fun = (flatten_struct_t)&flatten_struct_iter_##T;    \
+            __job.fp = (const struct flatten_base*)_fp; \
+            __job.convert = (flatten_struct_mixed_convert_t)&ff; \
+            bqueue_push_back(__q,&__job,sizeof(struct flatten_job));    \
+        }   \
+    } while(0)
 
 
 
