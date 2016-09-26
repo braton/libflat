@@ -120,7 +120,7 @@ real    1m44.941s
 user    1m39.262s
 sys     0m2.077s
 ```
-You might want to increase stack size when serializing such large trees (as serialization is done recursively and stack overlow is lurking in the backgroud):<br>
+You might want to increase stack size when serializing such large trees (as serialization is done recursively and stack overflow is lurking in the backgroud):<br>
 ```
 ulimit -s 524288
 ```
