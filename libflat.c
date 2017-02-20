@@ -1,18 +1,8 @@
 #include "libflat.h"
 #include "private.h"
 
-struct FLCONTROL FLCTRL = {
-		.bhead = 0,
-		.btail = 0,
-		.fixup_set_root = RB_ROOT,
-		.imap_root = RB_ROOT,
-		.rhead = 0,
-		.rtail = 0,
-		.mem = 0,
-		.last_accessed_root=0,
-		.debug_flag=0,
-		.option=0
-};
+struct FLCONTROL FLCTRL_ARR[MAX_FLCTRL_RECURSION_DEPTH];
+int FLCTRL_INDEX = -1;
 
 static struct blstream* create_binary_stream_element(size_t size) {
 	struct blstream* n = calloc(1,sizeof(struct blstream));
@@ -600,6 +590,7 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 }
 
 void flatten_init() {
+    ++FLCTRL_INDEX;
     FLCTRL.bhead = 0;
     FLCTRL.btail = 0;
     FLCTRL.fixup_set_root.rb_node = 0;
@@ -666,9 +657,11 @@ void flatten_fini() {
     	FLCTRL.rtail = FLCTRL.rtail->next;
     	free(p);
     }
+    --FLCTRL_INDEX;
 }    
 
 void unflatten_init() {
+    ++FLCTRL_INDEX;
     FLCTRL.bhead = 0;
     FLCTRL.btail = 0;
     FLCTRL.fixup_set_root.rb_node = 0;
@@ -728,6 +721,7 @@ void unflatten_fini() {
     	free(p);
     }
     free(FLCTRL.mem);
+    --FLCTRL_INDEX;
 }
 
 void* root_pointer_next() {

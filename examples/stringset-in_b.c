@@ -41,6 +41,7 @@ int main(int argc, char** argv) {
 			s[i] = chars[rand()%(sizeof chars - 1)];
 		}
 		stringset_insert(s);
+		free(s);
 	}
 
 	printf("String set size: %zu\n",stringset_count(&stringset_root));
@@ -57,6 +58,8 @@ int main(int argc, char** argv) {
 
 	flatten_fini();
 	fclose(out);
+
+	stringset_destroy(&stringset_root);
 
 	return 0;
 }

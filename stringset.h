@@ -45,8 +45,11 @@ static int stringset_insert(const char* s) {
 			new = &((*new)->rb_left);
 		else if (strcmp(data->s,this->s)>0)
 			new = &((*new)->rb_right);
-		else
-			return 0;
+		else {
+		    free((void*)data->s);
+		    free(data);
+		    return 0;
+		}
 	}
 
 	/* Add new node and rebalance tree. */
@@ -66,6 +69,18 @@ static void stringset_print(const struct rb_root* root) {
 		p = rb_next(p);
 	}
 	printf("]\n");
+}
+
+static void stringset_destroy(struct rb_root* root) {
+
+    struct rb_node * p = rb_first(root);
+    while(p) {
+        struct string_node* data = (struct string_node*)p;
+        rb_erase(p, root);
+        p = rb_next(p);
+        free((void*)data->s);
+        free(data);
+    }
 }
 
 static size_t stringset_count(const struct rb_root* root) {

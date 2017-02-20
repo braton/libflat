@@ -48,5 +48,7 @@ int main(void) {
 	flatten_fini();
 	fclose(out);
 
+	stringset_destroy(&stringset_root);
+
 	return 0;
 }

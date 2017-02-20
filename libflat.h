@@ -149,6 +149,9 @@ struct flatten_header {
 	uint64_t magic;
 };
 
+#define MAX_FLCTRL_RECURSION_DEPTH  16
+#define FLCTRL  (FLCTRL_ARR[FLCTRL_INDEX])
+
 struct FLCONTROL {
 	struct blstream* bhead;
 	struct blstream* btail;
@@ -163,7 +166,8 @@ struct FLCONTROL {
 	void* mem;
 };
 
-extern struct FLCONTROL FLCTRL;
+extern struct FLCONTROL FLCTRL_ARR[MAX_FLCTRL_RECURSION_DEPTH];
+extern int FLCTRL_INDEX;
 extern struct flatten_pointer* flatten_plain_type(const void* _ptr, size_t _sz);
 extern int fixup_set_insert(struct interval_tree_node* node, size_t offset, struct flatten_pointer* ptr);
 extern struct flatten_pointer* get_pointer_node(const void* _ptr);
@@ -559,12 +563,78 @@ struct flatten_pointer* flatten_struct_iter_##FLTYPE(const struct FLTYPE* _ptr, 
     return make_flatten_pointer(__node,0);  \
 }
 
+#define FUNCTION_DECLARE_FLATTEN_STRUCT_ITER(FLTYPE) \
+    extern struct flatten_pointer* flatten_struct_iter_##FLTYPE(const struct FLTYPE*, struct bqueue*);
+
+#define FUNCTION_DEFINE_FLATTEN_STRUCT_TYPE_ITER(FLTYPE,...)  \
+/* */       \
+            \
+struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const FLTYPE* _ptr, struct bqueue* __q) {    \
+            \
+    typedef FLTYPE _container_type;  \
+    size_t _alignment = 0;  \
+            \
+    struct interval_tree_node *__node = interval_tree_iter_first(&FLCTRL.imap_root, (uint64_t)_ptr, (uint64_t)_ptr+sizeof(FLTYPE)-1);    \
+    if (__node) {   \
+        assert(__node->start==(uint64_t)_ptr);  \
+        assert(__node->last==(uint64_t)_ptr+sizeof(FLTYPE)-1);   \
+        return make_flatten_pointer(__node,0);  \
+    }   \
+    else {  \
+        __node = calloc(1,sizeof(struct interval_tree_node));   \
+        assert(__node!=0);  \
+        __node->start = (uint64_t)_ptr; \
+        __node->last = (uint64_t)_ptr + sizeof(FLTYPE)-1;    \
+        struct blstream* storage;   \
+        struct rb_node* rb = interval_tree_insert(__node, &FLCTRL.imap_root);   \
+        struct rb_node* prev = rb_prev(rb); \
+        if (prev) { \
+            storage = binary_stream_insert_back(_ptr,sizeof(FLTYPE),((struct interval_tree_node*)prev)->storage);    \
+        }   \
+        else {  \
+            struct rb_node* next = rb_next(rb); \
+            if (next) { \
+                storage = binary_stream_insert_front(_ptr,sizeof(FLTYPE),((struct interval_tree_node*)next)->storage);   \
+            }   \
+            else {  \
+                storage = binary_stream_append(_ptr,sizeof(FLTYPE)); \
+            }   \
+        }   \
+        __node->storage = storage;  \
+    }   \
+        \
+    __VA_ARGS__ \
+    __node->storage->alignment = _alignment;    \
+    return make_flatten_pointer(__node,0);  \
+}
+
+#define FUNCTION_DECLARE_FLATTEN_STRUCT_TYPE_ITER(FLTYPE) \
+    extern struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const struct FLTYPE*, struct bqueue*);
+
 #define FLATTEN_STRUCT_ITER(T,p) do {    \
         DBGTP(FLATTEN_STRUCT_ITER,T,p);  \
         if (p) {   \
             struct bqueue bq;   \
             bqueue_init(&bq,DEFAULT_ITER_QUEUE_SIZE);   \
             fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_iter_##T(p,&bq));  \
+            while(!bqueue_empty(&bq)) { \
+                struct flatten_job __job;   \
+                bqueue_pop_front(&bq,&__job,sizeof(struct flatten_job));    \
+                if (!__job.convert) \
+                    fixup_set_insert(__job.node,__job.offset,(__job.fun)(__job.ptr,&bq));  \
+                else    \
+                    fixup_set_insert(__job.node,__job.offset,__job.convert((__job.fun)(__job.fp,&bq),__job.ptr));  \
+            }   \
+            bqueue_destroy(&bq);    \
+        }   \
+    } while(0)
+
+#define FLATTEN_STRUCT_TYPE_ITER(T,p) do {    \
+        DBGTP(FLATTEN_STRUCT_TYPE_ITER,T,p);  \
+        if (p) {   \
+            struct bqueue bq;   \
+            bqueue_init(&bq,DEFAULT_ITER_QUEUE_SIZE);   \
+            fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_type_iter_##T(p,&bq));  \
             while(!bqueue_empty(&bq)) { \
                 struct flatten_job __job;   \
                 bqueue_pop_front(&bq,&__job,sizeof(struct flatten_job));    \
@@ -591,6 +661,20 @@ struct flatten_pointer* flatten_struct_iter_##FLTYPE(const struct FLTYPE* _ptr, 
         }   \
     } while(0)
 
+#define AGGREGATE_FLATTEN_STRUCT_TYPE_ITER(T,f)   do {    \
+        DBGTF(AGGREGATE_FLATTEN_STRUCT_TYPE_ITER,T,f,"%p",(void*)ATTR(f));    \
+        if (ATTR(f)) {  \
+            struct flatten_job __job;   \
+            __job.node = __node;    \
+            __job.offset = offsetof(_container_type,f); \
+            __job.ptr = (struct flatten_base*)ATTR(f);    \
+            __job.fun = (flatten_struct_t)&flatten_struct_type_iter_##T;    \
+            __job.fp = 0;   \
+            __job.convert = 0;  \
+            bqueue_push_back(__q,&__job,sizeof(struct flatten_job));    \
+        }   \
+    } while(0)
+
 #define AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER_ITER(T,f,pf,ff)   do {    \
         DBGTFMF(AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER_ITER,T,f,"%p",(void*)ATTR(f),pf,ff);  \
         const struct T* _fp = pf((const struct T*)ATTR(f)); \
@@ -606,6 +690,50 @@ struct flatten_pointer* flatten_struct_iter_##FLTYPE(const struct FLTYPE* _ptr, 
         }   \
     } while(0)
 
+#define AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER_ITER(T,f,pf,ff)   do {    \
+        DBGTFMF(AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER_ITER,T,f,"%p",(void*)ATTR(f),pf,ff);  \
+        const T* _fp = pf((const T*)ATTR(f)); \
+        if (_fp) {  \
+            struct flatten_job __job;   \
+            __job.node = __node;    \
+            __job.offset = offsetof(_container_type,f); \
+            __job.ptr = (struct flatten_base*)ATTR(f);    \
+            __job.fun = (flatten_struct_t)&flatten_struct_type_iter_##T;    \
+            __job.fp = (const struct flatten_base*)_fp; \
+            __job.convert = (flatten_struct_mixed_convert_t)&ff; \
+            bqueue_push_back(__q,&__job,sizeof(struct flatten_job));    \
+        }   \
+    } while(0)
+
+
+#if 0
+/* TODO: Implement flattening struct arrays iteratively */
+/* TODO: Examples: circular-in_iter.c (...) */
+
+#define INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_ARRAY_ITER(FLTYPE) \
+static inline struct flatten_pointer* flatten_struct_iter_##FLTYPE##_array(const struct FLTYPE* _ptr, size_t n) {    \
+    size_t _i;  \
+    void* _fp_first=0;  \
+    for (_i=0; _i<n; ++_i) {    \
+        void* _fp = (void*)flatten_struct_iter_##FLTYPE_iter(_ptr+_i);    \
+        if (!_fp_first) _fp_first=_fp;  \
+        else free(_fp); \
+    }   \
+    return _fp_first;   \
+}
+
+#define INLINE_FUNCTION_DEFINE_FLATTEN_STRUCT_TYPE_ARRAY_ITER(FLTYPE)    \
+static inline struct flatten_pointer* flatten_struct_type_iter_##FLTYPE##_array(const FLTYPE* _ptr, size_t n) {  \
+    size_t _i;  \
+    void* _fp_first=0;  \
+    for (_i=0; _i<n; ++_i) {    \
+        void* _fp = (void*)flatten_struct_type_iter_##FLTYPE(_ptr+_i);   \
+        if (!_fp_first) _fp_first=_fp;  \
+        else free(_fp); \
+    }   \
+    return _fp_first;   \
+}
+#endif
 
 
 
