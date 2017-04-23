@@ -2,6 +2,10 @@
 #include <assert.h>
 #include "libflat.h"
 
+void flatten_debug_info();
+void flatten_set_debug_flag(int flag);
+void flatten_debug_memory();
+
 int main(void) {
 
 	FILE* out = fopen("/tmp/memory.img", "w");
@@ -13,6 +17,8 @@ int main(void) {
 
 	const char* start = carr;
 	const char* middle = carr + 41;
+
+	flatten_set_debug_flag(7);
 
 	FOR_ROOT_POINTER(start,
 		FLATTEN_TYPE(const char*,&start);
@@ -27,6 +33,8 @@ int main(void) {
 			FLATTEN_STRING(s);
 		);
 	);
+
+	flatten_debug_info();
 
 	printf("&carr[0]: %p\n", &carr[0]);
 	printf("&start: %p -> %p\n", &start, start);

@@ -178,13 +178,15 @@ void binary_stream_print() {
 
 	struct blstream* cp = FLCTRL.bhead;
 	size_t total_size = 0;
-    while(cp) {
+	printf("# Binary stream\n");
+	while(cp) {
     	struct blstream* p = cp;
     	cp = cp->next;
     	binary_stream_element_print(p);
     	total_size+=p->size;
     }
     printf("@ Total size: %zu\n",total_size);
+    printf("# --------\n");
 }
 
 size_t binary_stream_write(FILE* f) {
@@ -365,7 +367,7 @@ int fixup_set_insert(struct interval_tree_node* node, size_t offset, struct flat
 
 void fixup_set_print() {
 	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
-	printf("[\n");
+	printf("# Fixup set: [\n");
 	while(p) {
     	struct fixup_set_node* node = (struct fixup_set_node*)p;
     	uintptr_t newptr = node->ptr->node->storage->index+node->ptr->offset;
@@ -378,6 +380,7 @@ void fixup_set_print() {
     	p = rb_next(p);
     }
     printf("]\n");
+    printf("# --------\n");
 }
 
 size_t fixup_set_write(FILE* f) {
@@ -441,6 +444,7 @@ size_t root_addr_count() {
 void interval_tree_print(struct rb_root *root) {
 	struct rb_node * p = rb_first(root);
 	size_t total_size=0;
+	printf("# Interval tree\n");
 	while(p) {
 		struct interval_tree_node* node = (struct interval_tree_node*)p;
 		printf("(%p)[%p:%p](%zu){%p}\n",node,(void*)node->start,(void*)node->last,node->last-node->start+1,(void*)node->storage);
@@ -448,6 +452,7 @@ void interval_tree_print(struct rb_root *root) {
 		p = rb_next(p);
 	};
 	printf("@ Total size: %zu\n",total_size);
+	printf("# --------\n");
 }
 
 void interval_tree_destroy(struct rb_root *root) {
@@ -607,7 +612,7 @@ int flatten_write(FILE* ff) {
 	size_t written = 0;
 	binary_stream_calculate_index();
     binary_stream_update_pointers();
-    DBGC(0,flatten_debug_info());
+    if (FLCTRL.debug_flag&4) DBGC(1,flatten_debug_info());
     FLCTRL.HDR.memory_size = binary_stream_size();
     FLCTRL.HDR.ptr_count = fixup_set_count();
     FLCTRL.HDR.root_addr_count = root_addr_count();
@@ -786,7 +791,7 @@ void flatten_clear_option(int option) {
 
 void flatten_debug_memory() {
 	unsigned char* m = FLATTEN_MEMORY_START;
-	printf("(%p)\n",m);
+	printf("# Flattened memory (%p)\n",m);
 	printf("[ ");
 	for (;m<FLATTEN_MEMORY_END;) {
 		printf("%02x ",*m);
