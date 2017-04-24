@@ -218,7 +218,8 @@ void binary_stream_update_pointers() {
 	while(p) {
 	    struct fixup_set_node* node = (struct fixup_set_node*)p;
 	    void* newptr = (unsigned char*)node->ptr->node->storage->index+node->ptr->offset;
-	    if (FLCTRL.debug_flag&2) printf("@ ptr update at ((%p)%p:%zu) : %p => %p\n",node->inode,(void*)node->inode->start,node->offset,
+	    if (FLCTRL.debug_flag&2) printf("@ ptr update at ((orig_inode:%p)(ptr_val:%p:%zu)) : %p(newptr) => %p(ptr_storage)\n",
+	            node->inode,(void*)node->inode->start,node->offset,
 	            newptr,(void*)(((unsigned char*)node->inode->storage->data)+node->offset));
 	    memcpy(&((unsigned char*)node->inode->storage->data)[node->offset],&newptr,sizeof(void*));
 	    p = rb_next(p);
@@ -367,19 +368,22 @@ int fixup_set_insert(struct interval_tree_node* node, size_t offset, struct flat
 
 void fixup_set_print() {
 	struct rb_node * p = rb_first(&FLCTRL.fixup_set_root);
+	size_t ptr_num = 0;
 	printf("# Fixup set: [\n");
 	while(p) {
     	struct fixup_set_node* node = (struct fixup_set_node*)p;
     	uintptr_t newptr = node->ptr->node->storage->index+node->ptr->offset;
     	uintptr_t origptr = node->inode->storage->index+node->offset;
-    	printf(" %zu: (%p:%zu)->(%p:%zu) | %zu <- %zu\n",
+    	printf(" %zu (index): src-inode(%p:%zu)->(%p:%zu)dst-inode | %zu <- %zu \n",
     			node->inode->storage->index,
 				node->inode,node->offset,
 				node->ptr->node,node->ptr->offset,
 				origptr,newptr);
     	p = rb_next(p);
+    	ptr_num++;
     }
     printf("]\n");
+    printf("@ Number of pointers: %zu\n",ptr_num);
     printf("# --------\n");
 }
 
@@ -447,7 +451,7 @@ void interval_tree_print(struct rb_root *root) {
 	printf("# Interval tree\n");
 	while(p) {
 		struct interval_tree_node* node = (struct interval_tree_node*)p;
-		printf("(%p)[%p:%p](%zu){%p}\n",node,(void*)node->start,(void*)node->last,node->last-node->start+1,(void*)node->storage);
+		printf("inode:(%p)[%p:%p](istorage:%zu){%p}\n",node,(void*)node->start,(void*)node->last,node->last-node->start+1,(void*)node->storage);
 		total_size+=node->last-node->start+1;
 		p = rb_next(p);
 	};
