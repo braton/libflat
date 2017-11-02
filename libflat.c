@@ -674,42 +674,77 @@ void unflatten_init() {
     FLCTRL.option=0;
 }
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+
 int unflatten_read(FILE* f) {
 
 	TIME_MARK_START(unfl_b);
 	size_t readin = 0;
-	size_t rd = fread(&FLCTRL.HDR,sizeof(struct flatten_header),1,f);
-	if (rd!=1) return -1; else readin+=sizeof(struct flatten_header);
-	if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
-		fprintf(stderr,"Invalid magic while reading flattened image\n");
-		return -1;
+
+	if (1 && ((FLCTRL.option&option_mmap)==0)) {
+		struct stat sb;
+		fstat(fileno(f), &sb);
+		const char *mem;
+		mem = mmap(0, sizeof(struct flatten_header), PROT_READ|PROT_WRITE, MAP_SHARED, fileno(f), 0);
+		assert(mem!=MAP_FAILED);
+		memcpy(&FLCTRL.HDR,mem,sizeof(struct flatten_header));
+		munmap((void*)mem,sizeof(struct flatten_header));
+		size_t memsz = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count +
+				FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
+		assert(sb.st_size>=(long)memsz);
+		mem = mmap(0, memsz, PROT_READ|PROT_WRITE, MAP_SHARED, fileno(f), 0);
+		assert(mem!=MAP_FAILED);
+		mem+=sizeof(struct flatten_header);
+		if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
+			fprintf(stderr,"Invalid magic while reading flattened image\n");
+			return -1;
+		}
+		size_t i;
+		for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
+			size_t root_addr_offset;
+			memcpy(&root_addr_offset,mem,sizeof(size_t));
+			mem+=sizeof(size_t);
+			root_addr_append(root_addr_offset);
+		}
+		FLCTRL.mem = (void*)mem;
+		fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
 	}
-	size_t i;
-	for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
-		size_t root_addr_offset;
-		size_t rd = fread(&root_addr_offset,sizeof(size_t),1,f);
-		if (rd!=1) return -1; else readin+=sizeof(size_t);
-		root_addr_append(root_addr_offset);
+	else {
+		size_t rd = fread(&FLCTRL.HDR,sizeof(struct flatten_header),1,f);
+		if (rd!=1) return -1; else readin+=sizeof(struct flatten_header);
+		if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
+			fprintf(stderr,"Invalid magic while reading flattened image\n");
+			return -1;
+		}
+		size_t i;
+		for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
+			size_t root_addr_offset;
+			size_t rd = fread(&root_addr_offset,sizeof(size_t),1,f);
+			if (rd!=1) return -1; else readin+=sizeof(size_t);
+			root_addr_append(root_addr_offset);
+		}
+		DBGM("@ ptr count: %zu\n",FLCTRL.HDR.ptr_count);
+		DBGM("@ root_addr count: %zu\n",FLCTRL.HDR.root_addr_count);
+		size_t memsz = FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
+		FLCTRL.mem = malloc(memsz);
+		DBGM("@ flatten memory: %p:%p:%zu\n",FLCTRL.mem,FLCTRL.mem+memsz-1,memsz);
+		assert(FLCTRL.mem);
+		rd = fread(FLCTRL.mem,1,memsz,f);
+		if (rd!=memsz) return -1; else readin+=rd;
+		if ((FLCTRL.option&option_silent)==0) {
+			printf("# Unflattening done. Summary:\n");
+			TIME_CHECK_FMT(unfl_b,read_e,"  Image read time: %fs\n");
+		}
+		TIME_MARK_START(fix_b);
+		fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
+		if ((FLCTRL.option&option_silent)==0) {
+			TIME_CHECK_FMT(fix_b,fix_e,"  Fixing memory time: %fs\n");
+			TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
+			printf("  Total bytes read: %zu\n",readin);
+		}
 	}
-	DBGM("@ ptr count: %zu\n",FLCTRL.HDR.ptr_count);
-	DBGM("@ root_addr count: %zu\n",FLCTRL.HDR.root_addr_count);
-	size_t memsz = FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
-	FLCTRL.mem = malloc(memsz);
-	DBGM("@ flatten memory: %p:%p:%zu\n",FLCTRL.mem,FLCTRL.mem+memsz-1,memsz);
-	assert(FLCTRL.mem);
-	rd = fread(FLCTRL.mem,1,memsz,f);
-	if (rd!=memsz) return -1; else readin+=rd;
-	if ((FLCTRL.option&option_silent)==0) {
-		printf("# Unflattening done. Summary:\n");
-		TIME_CHECK_FMT(unfl_b,read_e,"  Image read time: %fs\n");
-	}
-	TIME_MARK_START(fix_b);
-	fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
-	if ((FLCTRL.option&option_silent)==0) {
-		TIME_CHECK_FMT(fix_b,fix_e,"  Fixing memory time: %fs\n");
-		TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
-		printf("  Total bytes read: %zu\n",readin);
-	}
+
 	return 0;
 }
 
@@ -720,7 +755,14 @@ void unflatten_fini() {
     	FLCTRL.rtail = FLCTRL.rtail->next;
     	free(p);
     }
-    free(FLCTRL.mem);
+    if ((FLCTRL.option&option_mmap)==0) {
+		size_t memsz = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count +
+				FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
+    	munmap(FLCTRL.mem,memsz);
+    }
+    else {
+    	free(FLCTRL.mem);
+    }
     --FLCTRL_INDEX;
 }
 

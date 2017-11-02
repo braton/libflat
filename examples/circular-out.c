@@ -19,7 +19,7 @@ struct figure {
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r");
+	FILE* in = fopen("/tmp/memory.img", "r+");
 	assert(in);
 	unflatten_init();
 
@@ -27,6 +27,7 @@ int main(void) {
 
 	const struct figure* circle = ROOT_POINTER_NEXT(const struct figure*);
 
+#if 1
 	unsigned i, j;
 	double length = 0, circumference = 0;
 	unsigned edge_number = 0;
@@ -57,6 +58,7 @@ int main(void) {
 	printf("Number of edges/diagonals: %u\n", edge_number);
 	printf("Sum of lengths of edges/diagonals: %.17f\n", length);
 	printf("Half of the circumference: %.17f\n", circumference / 2);
+#endif
 
 	unflatten_fini();
 	fclose(in);

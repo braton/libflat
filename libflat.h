@@ -76,7 +76,8 @@ int unflatten_read(FILE* f);
 void unflatten_fini();
 
 enum flatten_option {
-	option_silent = 0x01
+	option_silent = 0x01,
+	option_mmap = 0x02
 };
 
 void flatten_set_option(int option);
