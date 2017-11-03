@@ -585,7 +585,11 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 		size_t fix_loc = *((size_t*)memory+i);
 		uintptr_t ptr = (uintptr_t)( *((void**)((unsigned char*)mem+fix_loc)) );
 		/* Make the fix */
-		*((void**)((unsigned char*)mem+fix_loc)) = (unsigned char*)mem + ptr;
+		*((void**)((unsigned char*)mem+fix_loc)) = (unsigned char*)mem - hdr->fix_base + ptr;
+	}
+	if ((FLCTRL.option&option_mmap)!=0) {
+		size_t start_offset = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count;
+		((struct flatten_header*)(memory-start_offset))->fix_base = (uintptr_t)mem;
 	}
 }
 
@@ -611,6 +615,7 @@ int flatten_write(FILE* ff) {
     FLCTRL.HDR.memory_size = binary_stream_size();
     FLCTRL.HDR.ptr_count = fixup_set_count();
     FLCTRL.HDR.root_addr_count = root_addr_count();
+    FLCTRL.HDR.fix_base = 0;
     FLCTRL.HDR.magic = FLATTEN_MAGIC;
     size_t wr = fwrite(&FLCTRL.HDR,sizeof(struct flatten_header),1,ff);
     if (wr!=1) return -1; written+=sizeof(struct flatten_header);
@@ -682,7 +687,7 @@ int unflatten_read(FILE* f) {
 	TIME_MARK_START(unfl_b);
 	size_t readin = 0;
 
-	if (1 && ((FLCTRL.option&option_mmap)==0)) {
+	if ((FLCTRL.option&option_mmap)!=0) {
 		struct stat sb;
 		fstat(fileno(f), &sb);
 		const char *mem;
@@ -755,10 +760,10 @@ void unflatten_fini() {
     	FLCTRL.rtail = FLCTRL.rtail->next;
     	free(p);
     }
-    if ((FLCTRL.option&option_mmap)==0) {
-		size_t memsz = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count +
+    if ((FLCTRL.option&option_mmap)!=0) {
+    	size_t memsz = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count +
 				FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
-    	munmap(FLCTRL.mem,memsz);
+		munmap(FLCTRL.mem,memsz);
     }
     else {
     	free(FLCTRL.mem);

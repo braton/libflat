@@ -23,6 +23,8 @@ int main(void) {
 	assert(in);
 	unflatten_init();
 
+	flatten_set_option(option_mmap);
+
 	assert(unflatten_read(in) == 0);
 
 	const struct figure* circle = ROOT_POINTER_NEXT(const struct figure*);

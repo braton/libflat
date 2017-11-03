@@ -38,7 +38,7 @@ OUTDYN = libflat.so
 OUTTEST = flattest
 MAKEFILE = Makefile
 
-OUT := $(OUTLIB) $(OUTDYN) $(OUTTEST)
+OUT := $(OUTLIB) $(OUTDYN) $(OUTTEST) $(EXAMPLE_OUT)
 all: $(OUT)
 	@echo "Built version $(__LIBFLAT_VERSION__)"
 
@@ -49,7 +49,7 @@ test: $(OUTTEST)
 examples: $(EXAMPLE_OUT)
 
 define compile_example
-$(1): LDFLAGS += $(EXE_LDFLAGS) -lm -lflat
+$(1): LDFLAGS += $(EXE_LDFLAGS) -lm -lflat -L$(ROOT_DIR)
 $(1): CFLAGS += -I$(ROOT_DIR) -Wno-unused-local-typedefs -Wno-unused-function
 $(1): $(addsuffix .c,$(1)) $(OUTDYN)
 	@echo "  [LD]   $$@"

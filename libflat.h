@@ -147,6 +147,7 @@ struct flatten_header {
 	size_t memory_size;
 	size_t ptr_count;
 	size_t root_addr_count;
+	uintptr_t fix_base;
 	uint64_t magic;
 };
 
