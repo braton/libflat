@@ -19,11 +19,9 @@ struct figure {
 
 int main(void) {
 
-	FILE* in = fopen("/tmp/memory.img", "r+");
+	FILE* in = fopen("/tmp/memory.img", "r");
 	assert(in);
 	unflatten_init();
-
-	flatten_set_option(option_mmap);
 
 	assert(unflatten_read(in) == 0);
 

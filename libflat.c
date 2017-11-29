@@ -587,10 +587,6 @@ void fix_unflatten_memory(struct flatten_header* hdr, void* memory) {
 		/* Make the fix */
 		*((void**)((unsigned char*)mem+fix_loc)) = (unsigned char*)mem - hdr->fix_base + ptr;
 	}
-	if ((FLCTRL.option&option_mmap)!=0) {
-		size_t start_offset = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count;
-		((struct flatten_header*)(memory-start_offset))->fix_base = (uintptr_t)mem;
-	}
 }
 
 void flatten_init() {
@@ -605,6 +601,7 @@ void flatten_init() {
     FLCTRL.last_accessed_root=0;
     FLCTRL.debug_flag=0;
     FLCTRL.option=0;
+    FLCTRL.map_size = 0;
 }
 
 int flatten_write(FILE* ff) {
@@ -666,7 +663,7 @@ void flatten_fini() {
 }    
 
 void unflatten_init() {
-    ++FLCTRL_INDEX;
+	++FLCTRL_INDEX;
     FLCTRL.bhead = 0;
     FLCTRL.btail = 0;
     FLCTRL.fixup_set_root.rb_node = 0;
@@ -677,77 +674,120 @@ void unflatten_init() {
     FLCTRL.last_accessed_root=0;
     FLCTRL.debug_flag=0;
     FLCTRL.option=0;
+    FLCTRL.map_size = 0;
 }
 
 #include <sys/mman.h>
 #include <sys/stat.h>
+
+int unflatten_map(int fd, off_t offset) {
+
+	TIME_MARK_START(unfl_b);
+
+	struct stat st;
+	fstat(fd, &st);
+	const char *mem;
+	mem = mmap(0, offset+sizeof(struct flatten_header), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+	assert(mem!=MAP_FAILED);
+	memcpy(&FLCTRL.HDR,mem+offset,sizeof(struct flatten_header));
+	munmap((void*)mem,offset+sizeof(struct flatten_header));
+	size_t memsz = offset+sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count +
+			FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
+	assert(st.st_size>=(long)memsz);
+	size_t hdr_offset = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count;
+	size_t mem_offset = hdr_offset + FLCTRL.HDR.ptr_count*sizeof(size_t);
+	void* reqaddr = 0;
+	if (FLCTRL.HDR.fix_base) {
+		/* Try to map memory at the same address as it was mapped last time */
+		reqaddr = (void*)(FLCTRL.HDR.fix_base - mem_offset - offset);
+		mem = mmap(reqaddr, memsz, PROT_READ, MAP_SHARED, fd, 0);
+		if ((mem!=MAP_FAILED)&&(mem!=reqaddr)) {
+			/* mmap succeeded but the address is different */
+			munmap((void*)mem,memsz);
+			reqaddr = 0;
+		}
+		else if (mem!=MAP_FAILED) {
+			/* mem is mapped at requested address. Nothing to do anymore. */
+		}
+		else {
+			/* mmap failed */
+			reqaddr = 0;
+		}
+	}
+	if (reqaddr==0) {
+		mem = mmap(0, memsz, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+		assert(mem!=MAP_FAILED);
+	}
+	FLCTRL.map_size = memsz;
+	mem+=offset+sizeof(struct flatten_header);
+	if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
+		fprintf(stderr,"Invalid magic while reading flattened image\n");
+		return -1;
+	}
+	size_t i;
+	for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
+		size_t root_addr_offset;
+		memcpy(&root_addr_offset,mem,sizeof(size_t));
+		mem+=sizeof(size_t);
+		root_addr_append(root_addr_offset);
+	}
+	FLCTRL.mem = (void*)mem;
+	if ((FLCTRL.option&option_silent)==0) {
+		printf("# Unflattening done. Summary:\n");
+		TIME_CHECK_FMT(unfl_b,map_e,"  Image mapping time: %fs\n");
+	}
+	TIME_MARK_START(fix_b);
+	if (reqaddr==0) {
+		fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
+		((struct flatten_header*)(mem-hdr_offset))->fix_base = (uintptr_t)mem + FLCTRL.HDR.ptr_count*sizeof(size_t);
+	}
+	if ((FLCTRL.option&option_silent)==0) {
+		if (reqaddr==0) {
+			TIME_CHECK_FMT(fix_b,fix_e,"  Fixing memory time: %fs\n");
+		}
+		TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
+		printf("  Total bytes mapped: %zu\n",memsz);
+	}
+
+	return 0;
+}
 
 int unflatten_read(FILE* f) {
 
 	TIME_MARK_START(unfl_b);
 	size_t readin = 0;
 
-	if ((FLCTRL.option&option_mmap)!=0) {
-		struct stat sb;
-		fstat(fileno(f), &sb);
-		const char *mem;
-		mem = mmap(0, sizeof(struct flatten_header), PROT_READ|PROT_WRITE, MAP_SHARED, fileno(f), 0);
-		assert(mem!=MAP_FAILED);
-		memcpy(&FLCTRL.HDR,mem,sizeof(struct flatten_header));
-		munmap((void*)mem,sizeof(struct flatten_header));
-		size_t memsz = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count +
-				FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
-		assert(sb.st_size>=(long)memsz);
-		mem = mmap(0, memsz, PROT_READ|PROT_WRITE, MAP_SHARED, fileno(f), 0);
-		assert(mem!=MAP_FAILED);
-		mem+=sizeof(struct flatten_header);
-		if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
-			fprintf(stderr,"Invalid magic while reading flattened image\n");
-			return -1;
-		}
-		size_t i;
-		for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
-			size_t root_addr_offset;
-			memcpy(&root_addr_offset,mem,sizeof(size_t));
-			mem+=sizeof(size_t);
-			root_addr_append(root_addr_offset);
-		}
-		FLCTRL.mem = (void*)mem;
-		fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
+	size_t rd = fread(&FLCTRL.HDR,sizeof(struct flatten_header),1,f);
+	if (rd!=1) return -1; else readin+=sizeof(struct flatten_header);
+	if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
+		fprintf(stderr,"Invalid magic while reading flattened image\n");
+		return -1;
 	}
-	else {
-		size_t rd = fread(&FLCTRL.HDR,sizeof(struct flatten_header),1,f);
-		if (rd!=1) return -1; else readin+=sizeof(struct flatten_header);
-		if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
-			fprintf(stderr,"Invalid magic while reading flattened image\n");
-			return -1;
-		}
-		size_t i;
-		for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
-			size_t root_addr_offset;
-			size_t rd = fread(&root_addr_offset,sizeof(size_t),1,f);
-			if (rd!=1) return -1; else readin+=sizeof(size_t);
-			root_addr_append(root_addr_offset);
-		}
-		DBGM("@ ptr count: %zu\n",FLCTRL.HDR.ptr_count);
-		DBGM("@ root_addr count: %zu\n",FLCTRL.HDR.root_addr_count);
-		size_t memsz = FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
-		FLCTRL.mem = malloc(memsz);
-		DBGM("@ flatten memory: %p:%p:%zu\n",FLCTRL.mem,FLCTRL.mem+memsz-1,memsz);
-		assert(FLCTRL.mem);
-		rd = fread(FLCTRL.mem,1,memsz,f);
-		if (rd!=memsz) return -1; else readin+=rd;
-		if ((FLCTRL.option&option_silent)==0) {
-			printf("# Unflattening done. Summary:\n");
-			TIME_CHECK_FMT(unfl_b,read_e,"  Image read time: %fs\n");
-		}
-		TIME_MARK_START(fix_b);
-		fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
-		if ((FLCTRL.option&option_silent)==0) {
-			TIME_CHECK_FMT(fix_b,fix_e,"  Fixing memory time: %fs\n");
-			TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
-			printf("  Total bytes read: %zu\n",readin);
-		}
+	size_t i;
+	for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
+		size_t root_addr_offset;
+		size_t rd = fread(&root_addr_offset,sizeof(size_t),1,f);
+		if (rd!=1) return -1; else readin+=sizeof(size_t);
+		root_addr_append(root_addr_offset);
+	}
+	DBGM("@ ptr count: %zu\n",FLCTRL.HDR.ptr_count);
+	DBGM("@ root_addr count: %zu\n",FLCTRL.HDR.root_addr_count);
+	size_t memsz = FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
+	FLCTRL.mem = malloc(memsz);
+	DBGM("@ flatten memory: %p:%p:%zu\n",FLCTRL.mem,FLCTRL.mem+memsz-1,memsz);
+	assert(FLCTRL.mem);
+	rd = fread(FLCTRL.mem,1,memsz,f);
+	if (rd!=memsz) return -1; else readin+=rd;
+	if ((FLCTRL.option&option_silent)==0) {
+		printf("# Unflattening done. Summary:\n");
+		TIME_CHECK_FMT(unfl_b,read_e,"  Image read time: %fs\n");
+	}
+	TIME_MARK_START(fix_b);
+	fix_unflatten_memory(&FLCTRL.HDR,FLCTRL.mem);
+	if ((FLCTRL.option&option_silent)==0) {
+		TIME_CHECK_FMT(fix_b,fix_e,"  Fixing memory time: %fs\n");
+		TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
+		printf("  Total bytes read: %zu\n",readin);
 	}
 
 	return 0;
@@ -760,10 +800,8 @@ void unflatten_fini() {
     	FLCTRL.rtail = FLCTRL.rtail->next;
     	free(p);
     }
-    if ((FLCTRL.option&option_mmap)!=0) {
-    	size_t memsz = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count +
-				FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
-		munmap(FLCTRL.mem,memsz);
+    if (FLCTRL.map_size>0) {
+    	munmap(FLCTRL.mem,FLCTRL.map_size);
     }
     else {
     	free(FLCTRL.mem);

@@ -73,11 +73,11 @@ int flatten_write(FILE* f);
 void flatten_fini();
 void unflatten_init();
 int unflatten_read(FILE* f);
+int unflatten_map(int fd, off_t offset);
 void unflatten_fini();
 
 enum flatten_option {
 	option_silent = 0x01,
-	option_mmap = 0x02
 };
 
 void flatten_set_option(int option);
@@ -166,6 +166,7 @@ struct FLCONTROL {
 	int debug_flag;
 	unsigned long option;
 	void* mem;
+	size_t map_size;
 };
 
 extern struct FLCONTROL FLCTRL_ARR[MAX_FLCTRL_RECURSION_DEPTH];
