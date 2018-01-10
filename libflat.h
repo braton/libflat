@@ -167,6 +167,7 @@ struct FLCONTROL {
 	unsigned long option;
 	void* mem;
 	size_t map_size;
+	void* map_mem;
 };
 
 extern struct FLCONTROL FLCTRL_ARR[MAX_FLCTRL_RECURSION_DEPTH];

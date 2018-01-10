@@ -719,6 +719,7 @@ int unflatten_map(int fd, off_t offset) {
 		assert(mem!=MAP_FAILED);
 	}
 	FLCTRL.map_size = memsz;
+	FLCTRL.map_mem = (void*)mem;
 	mem+=offset+sizeof(struct flatten_header);
 	if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
 		fprintf(stderr,"Invalid magic while reading flattened image\n");
@@ -801,7 +802,7 @@ void unflatten_fini() {
     	free(p);
     }
     if (FLCTRL.map_size>0) {
-    	munmap(FLCTRL.mem,FLCTRL.map_size);
+    	assert(munmap(FLCTRL.map_mem,FLCTRL.map_size)==0);
     }
     else {
     	free(FLCTRL.mem);
