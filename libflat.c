@@ -771,11 +771,11 @@ int unflatten_read(FILE* f) {
 		if (rd!=1) return -1; else readin+=sizeof(size_t);
 		root_addr_append(root_addr_offset);
 	}
-	DBGM("@ ptr count: %zu\n",FLCTRL.HDR.ptr_count);
-	DBGM("@ root_addr count: %zu\n",FLCTRL.HDR.root_addr_count);
+	LIBFLAT_DBGM("@ ptr count: %zu\n",FLCTRL.HDR.ptr_count);
+	LIBFLAT_DBGM("@ root_addr count: %zu\n",FLCTRL.HDR.root_addr_count);
 	size_t memsz = FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
 	FLCTRL.mem = malloc(memsz);
-	DBGM("@ flatten memory: %p:%p:%zu\n",FLCTRL.mem,FLCTRL.mem+memsz-1,memsz);
+	LIBFLAT_DBGM("@ flatten memory: %p:%p:%zu\n",FLCTRL.mem,FLCTRL.mem+memsz-1,memsz);
 	assert(FLCTRL.mem);
 	rd = fread(FLCTRL.mem,1,memsz,f);
 	if (rd!=memsz) return -1; else readin+=rd;

@@ -255,48 +255,48 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 	return count;
 }
 
-#define DBGM(...)						do { if (FLCTRL.debug_flag&1) printf(__VA_ARGS__); } while(0)
-#define DBGM1(name,a1)					do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 ")\n"); } while(0)
-#define DBGF(name,F,FMT,P)				do { if (FLCTRL.debug_flag&1) printf(#name "(" #F "[" FMT "])\n",P); } while(0)
-#define DBGM2(name,a1,a2)				do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 ")\n"); } while(0)
-#define DBGTF(name,T,F,FMT,P)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #F "[" FMT "])\n",P); } while(0)
-#define DBGTFMF(name,T,F,FMT,P,PF,FF)	do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #F "[" FMT "]," #PF "," #FF ")\n",P); } while(0)
-#define DBGTP(name,T,P)					do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #P "[%p])\n",P); } while(0)
-#define DBGM3(name,a1,a2,a3)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 "," #a3 ")\n"); } while(0)
-#define DBGM4(name,a1,a2,a3,a4)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 "," #a3 "," #a4 ")\n"); } while(0)
+#define LIBFLAT_DBGM(...)						do { if (FLCTRL.debug_flag&1) printf(__VA_ARGS__); } while(0)
+#define LIBFLAT_DBGM1(name,a1)					do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 ")\n"); } while(0)
+#define LIBFLAT_DBGF(name,F,FMT,P)				do { if (FLCTRL.debug_flag&1) printf(#name "(" #F "[" FMT "])\n",P); } while(0)
+#define LIBFLAT_DBGM2(name,a1,a2)				do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 ")\n"); } while(0)
+#define LIBFLAT_DBGTF(name,T,F,FMT,P)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #F "[" FMT "])\n",P); } while(0)
+#define LIBFLAT_DBGTFMF(name,T,F,FMT,P,PF,FF)	do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #F "[" FMT "]," #PF "," #FF ")\n",P); } while(0)
+#define LIBFLAT_DBGTP(name,T,P)					do { if (FLCTRL.debug_flag&1) printf(#name "(" #T "," #P "[%p])\n",P); } while(0)
+#define LIBFLAT_DBGM3(name,a1,a2,a3)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 "," #a3 ")\n"); } while(0)
+#define LIBFLAT_DBGM4(name,a1,a2,a3,a4)			do { if (FLCTRL.debug_flag&1) printf(#name "(" #a1 "," #a2 "," #a3 "," #a4 ")\n"); } while(0)
 
 #define ATTR(f)	((_ptr)->f)
 
 #define FLATTEN_STRUCT(T,p)	do {	\
-		DBGTP(FLATTEN_STRUCT,T,p);	\
+		LIBFLAT_DBGTP(FLATTEN_STRUCT,T,p);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_##T((p)));	\
 		}	\
 	} while(0)
 
 #define FLATTEN_STRUCT_TYPE(T,p)	do {	\
-		DBGTP(FLATTEN_STRUCT_TYPE,T,p);	\
+		LIBFLAT_DBGTP(FLATTEN_STRUCT_TYPE,T,p);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_type_##T((p)));	\
 		}	\
 	} while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT(T,f)	do {	\
-		DBGTF(AGGREGATE_FLATTEN_STRUCT,T,f,"%p",(void*)ATTR(f));	\
+		LIBFLAT_DBGTF(AGGREGATE_FLATTEN_STRUCT,T,f,"%p",(void*)ATTR(f));	\
     	if (ATTR(f)) {	\
     		fixup_set_insert(__node,offsetof(_container_type,f),flatten_struct_##T((const struct T*)ATTR(f)));	\
 		}	\
 	} while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_TYPE(T,f)	do {	\
-        DBGTF(AGGREGATE_FLATTEN_STRUCT_TYPE,T,f,"%p",(void*)ATTR(f));	\
+		LIBFLAT_DBGTF(AGGREGATE_FLATTEN_STRUCT_TYPE,T,f,"%p",(void*)ATTR(f));	\
         if (ATTR(f)) {	\
             fixup_set_insert(__node,offsetof(_container_type,f),flatten_struct_type_##T((const T*)ATTR(f)));	\
         }	\
     } while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER(T,f,pf,ff)	do {	\
-		DBGTFMF(AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER,T,f,"%p",(void*)ATTR(f),pf,ff);	\
+		LIBFLAT_DBGTFMF(AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER,T,f,"%p",(void*)ATTR(f),pf,ff);	\
 		const struct T* _fp = pf((const struct T*)ATTR(f));	\
     	if (_fp) {	\
     		fixup_set_insert(__node,offsetof(_container_type,f),ff(flatten_struct_##T(_fp),(const struct T*)ATTR(f)));	\
@@ -304,7 +304,7 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 	} while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER(T,f,pf,ff)	do {	\
-        DBGTFMF(AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER,T,f,"%p",(void*)ATTR(f),pf,ff);	\
+		LIBFLAT_DBGTFMF(AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER,T,f,"%p",(void*)ATTR(f),pf,ff);	\
         const T* _fp = pf((const T*)ATTR(f));	\
         if (_fp) {	\
             fixup_set_insert(__node,offsetof(_container_type,f),ff(flatten_struct_type_##T(_fp),(const T*)ATTR(f)));	\
@@ -312,21 +312,21 @@ static inline size_t ptrarrmemlen(const void* const* m) {
     } while(0)
 
 #define FLATTEN_STRUCT_ARRAY(T,p,n)	do {	\
-		DBGM3(FLATTEN_STRUCT_ARRAY,T,p,n);	\
+		LIBFLAT_DBGM3(FLATTEN_STRUCT_ARRAY,T,p,n);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_##T##_array((p),(n)));	\
 		}	\
 	} while(0)
 
 #define FLATTEN_STRUCT_TYPE_ARRAY(T,p,n)	do {	\
-		DBGM3(FLATTEN_STRUCT_TYPE_ARRAY,T,p,n);	\
+		LIBFLAT_DBGM3(FLATTEN_STRUCT_TYPE_ARRAY,T,p,n);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_struct_type_##T##_array((p),(n)));	\
 		}	\
 	} while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_ARRAY(T,f,n)	do {	\
-		DBGM3(AGGREGATE_FLATTEN_STRUCT_ARRAY,T,f,n);	\
+		LIBFLAT_DBGM3(AGGREGATE_FLATTEN_STRUCT_ARRAY,T,f,n);	\
     	if (ATTR(f)) {	\
     		size_t _i;	\
     		void* _fp_first=0;	\
@@ -340,7 +340,7 @@ static inline size_t ptrarrmemlen(const void* const* m) {
 	} while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_TYPE_ARRAY(T,f,n)	do {	\
-        DBGM3(AGGREGATE_FLATTEN_STRUCT_TYPE_ARRAY,T,f,n);	\
+		LIBFLAT_DBGM3(AGGREGATE_FLATTEN_STRUCT_TYPE_ARRAY,T,f,n);	\
         if (ATTR(f)) {	\
             size_t _i;	\
             void* _fp_first=0;	\
@@ -354,42 +354,42 @@ static inline size_t ptrarrmemlen(const void* const* m) {
     } while(0)
 
 #define FLATTEN_STRING(p)	do {	\
-		DBGM1(FLATTEN_STRING,p);	\
+		LIBFLAT_DBGM1(FLATTEN_STRING,p);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_plain_type((p),strmemlen(p)));	\
 		}	\
 	} while(0)
 
 #define AGGREGATE_FLATTEN_STRING(f)   do {  \
-		DBGF(AGGREGATE_FLATTEN_STRING,f,"%p",(void*)ATTR(f));	\
+		LIBFLAT_DBGF(AGGREGATE_FLATTEN_STRING,f,"%p",(void*)ATTR(f));	\
         if (ATTR(f)) {   \
         	fixup_set_insert(__node,offsetof(_container_type,f),flatten_plain_type(ATTR(f),strmemlen(ATTR(f))));	\
         }   \
     } while(0)
 
 #define FLATTEN_TYPE(T,p)	do {	\
-		DBGM2(FLATTEN_TYPE,T,p);	\
+		LIBFLAT_DBGM2(FLATTEN_TYPE,T,p);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_plain_type((p),sizeof(T)));	\
 		}	\
 	} while(0)
 
 #define AGGREGATE_FLATTEN_TYPE(T,f)   do {  \
-		DBGM2(AGGREGATE_FLATTEN_TYPE,T,f);	\
+		LIBFLAT_DBGM2(AGGREGATE_FLATTEN_TYPE,T,f);	\
         if (ATTR(f)) {   \
             fixup_set_insert(__node,offsetof(_container_type,f),flatten_plain_type(ATTR(f),sizeof(T)));	\
         }   \
     } while(0)
 
 #define FLATTEN_TYPE_ARRAY(T,p,n)	do {	\
-		DBGM3(FLATTEN_TYPE_ARRAY,T,p,n);	\
+		LIBFLAT_DBGM3(FLATTEN_TYPE_ARRAY,T,p,n);	\
 		if (p) {   \
 			fixup_set_insert(__fptr->node,__fptr->offset,flatten_plain_type((p),(n)*sizeof(T)));	\
 		}	\
 	} while(0)
 
 #define AGGREGATE_FLATTEN_TYPE_ARRAY(T,f,n)   do {  \
-		DBGM3(AGGREGATE_FLATTEN_TYPE_ARRAY,T,f,n);	\
+		LIBFLAT_DBGM3(AGGREGATE_FLATTEN_TYPE_ARRAY,T,f,n);	\
         if (ATTR(f)) {   \
             fixup_set_insert(__node,offsetof(_container_type,f),flatten_plain_type(ATTR(f),(n)*sizeof(T)));	\
         }   \
@@ -616,7 +616,7 @@ struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const FLTYPE* _ptr, st
     extern struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const struct FLTYPE*, struct bqueue*);
 
 #define FLATTEN_STRUCT_ITER(T,p) do {    \
-        DBGTP(FLATTEN_STRUCT_ITER,T,p);  \
+		LIBFLAT_DBGTP(FLATTEN_STRUCT_ITER,T,p);  \
         if (p) {   \
             struct bqueue bq;   \
             bqueue_init(&bq,DEFAULT_ITER_QUEUE_SIZE);   \
@@ -634,7 +634,7 @@ struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const FLTYPE* _ptr, st
     } while(0)
 
 #define FLATTEN_STRUCT_TYPE_ITER(T,p) do {    \
-        DBGTP(FLATTEN_STRUCT_TYPE_ITER,T,p);  \
+		LIBFLAT_DBGTP(FLATTEN_STRUCT_TYPE_ITER,T,p);  \
         if (p) {   \
             struct bqueue bq;   \
             bqueue_init(&bq,DEFAULT_ITER_QUEUE_SIZE);   \
@@ -652,7 +652,7 @@ struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const FLTYPE* _ptr, st
     } while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_ITER(T,f)   do {    \
-        DBGTF(AGGREGATE_FLATTEN_STRUCT_ITER,T,f,"%p",(void*)ATTR(f));    \
+		LIBFLAT_DBGTF(AGGREGATE_FLATTEN_STRUCT_ITER,T,f,"%p",(void*)ATTR(f));    \
         if (ATTR(f)) {  \
             struct flatten_job __job;   \
             __job.node = __node;    \
@@ -666,7 +666,7 @@ struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const FLTYPE* _ptr, st
     } while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_TYPE_ITER(T,f)   do {    \
-        DBGTF(AGGREGATE_FLATTEN_STRUCT_TYPE_ITER,T,f,"%p",(void*)ATTR(f));    \
+		LIBFLAT_DBGTF(AGGREGATE_FLATTEN_STRUCT_TYPE_ITER,T,f,"%p",(void*)ATTR(f));    \
         if (ATTR(f)) {  \
             struct flatten_job __job;   \
             __job.node = __node;    \
@@ -680,7 +680,7 @@ struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const FLTYPE* _ptr, st
     } while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER_ITER(T,f,pf,ff)   do {    \
-        DBGTFMF(AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER_ITER,T,f,"%p",(void*)ATTR(f),pf,ff);  \
+		LIBFLAT_DBGTFMF(AGGREGATE_FLATTEN_STRUCT_MIXED_POINTER_ITER,T,f,"%p",(void*)ATTR(f),pf,ff);  \
         const struct T* _fp = pf((const struct T*)ATTR(f)); \
         if (_fp) {  \
             struct flatten_job __job;   \
@@ -695,7 +695,7 @@ struct flatten_pointer* flatten_struct_type_iter_##FLTYPE(const FLTYPE* _ptr, st
     } while(0)
 
 #define AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER_ITER(T,f,pf,ff)   do {    \
-        DBGTFMF(AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER_ITER,T,f,"%p",(void*)ATTR(f),pf,ff);  \
+		LIBFLAT_DBGTFMF(AGGREGATE_FLATTEN_STRUCT_TYPE_MIXED_POINTER_ITER,T,f,"%p",(void*)ATTR(f),pf,ff);  \
         const T* _fp = pf((const T*)ATTR(f)); \
         if (_fp) {  \
             struct flatten_job __job;   \
@@ -746,7 +746,7 @@ static inline struct flatten_pointer* flatten_struct_type_iter_##FLTYPE##_array(
 
 
 #define FOREACH_POINTER(PTRTYPE,v,p,s,...)	do {	\
-		DBGM4(FOREACH_POINTER,PTRTYPE,v,p,s);	\
+		LIBFLAT_DBGM4(FOREACH_POINTER,PTRTYPE,v,p,s);	\
 		if (p) {	\
 			PTRTYPE const * _m = (PTRTYPE const *)(p);	\
 			size_t _i, _sz = (s);	\
@@ -761,7 +761,7 @@ static inline struct flatten_pointer* flatten_struct_type_iter_##FLTYPE##_array(
 
 
 #define FOR_POINTER(PTRTYPE,v,p,...)	do {	\
-		DBGM3(FOR_POINTER,PTRTYPE,v,p);	\
+		LIBFLAT_DBGM3(FOR_POINTER,PTRTYPE,v,p);	\
 		if (p) {	\
 			PTRTYPE const * _m = (PTRTYPE const *)(p);	\
 			struct flatten_pointer* __fptr = get_pointer_node(_m);	\
@@ -776,7 +776,7 @@ static inline struct flatten_pointer* flatten_struct_type_iter_##FLTYPE##_array(
 #define ROOT_POINTER_SEQ(PTRTYPE,n)	((PTRTYPE)(root_pointer_seq(n)))
 
 #define FOR_ROOT_POINTER(p,...)	do {	\
-		DBGM1(FOR_ROOT_POINTER,p);	\
+		LIBFLAT_DBGM1(FOR_ROOT_POINTER,p);	\
 		if (p) {	\
 			struct flatten_pointer* __fptr = make_flatten_pointer(0,0);	\
 			__VA_ARGS__;	\
