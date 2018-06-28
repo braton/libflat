@@ -621,7 +621,7 @@ int flatten_write(FILE* ff) {
         size_t root_addr_offset;
         if (p->root_addr) {
             struct interval_tree_node *node = PTRNODE(p->root_addr);
-            DBGM("@ root_addr: %p node: %p\n",(void*)p->root_addr,node);
+            LIBFLAT_DBGM("@ root_addr: %p node: %p\n",(void*)p->root_addr,node);
             assert(node!=0);
             root_addr_offset = node->storage->index + (p->root_addr-node->start);
     	}
