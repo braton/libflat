@@ -159,7 +159,7 @@ examples/stringset-out_a
 ```
 
 ###Documentation
-[Full documentation with examples](http://libflat.codessense.com/)
+[Full documentation with examples](http://libflat.codeawareness.com/)
 
 
 ###License
