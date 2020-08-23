@@ -9,7 +9,7 @@ CFLAGS = -Wno-address -Wno-missing-field-initializers
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 CFLAGS += -Wall -Wextra 
-CFLAGS += -O2 -ggdb3
+CFLAGS += -O0 -ggdb3
 CFLAGS += -MD
 CFLAGS += -D__LIBFLAT_VERSION__=\"$(__LIBFLAT_VERSION__)\"
 

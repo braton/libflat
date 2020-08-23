@@ -323,9 +323,59 @@ struct fixup_set_node *fixup_set_search(uintptr_t v) {
 	return 0;
 }
 
-int fixup_set_insert(struct interval_tree_node* node, size_t offset, struct flatten_pointer* ptr) {
+int fixup_set_reserve(struct interval_tree_node* node, size_t offset) {
 
-	//printf("@ fixup_set_insert: ( {%p:%zu} => {%p:%zu} )\n",node,offset,ptr->node,ptr->offset);
+	if (node==0) {
+		return 0;
+	}
+
+	struct fixup_set_node* inode = fixup_set_search(node->start+offset);
+
+	if (inode) {
+		return 0;
+	}
+
+	struct fixup_set_node *data = create_fixup_set_node_element(node,offset,0);
+	struct rb_node **new = &(FLCTRL.fixup_set_root.rb_node), *parent = 0;
+
+	/* Figure out where to put new node */
+	while (*new) {
+		struct fixup_set_node *this = container_of(*new, struct fixup_set_node, node);
+
+		parent = *new;
+		if (ADDR_KEY(data) < ADDR_KEY(this))
+			new = &((*new)->rb_left);
+		else if (ADDR_KEY(data) > ADDR_KEY(this))
+			new = &((*new)->rb_right);
+		else
+			return 0;
+	}
+
+	/* Add new node and rebalance tree. */
+	rb_link_node(&data->node, parent, new);
+	rb_insert_color(&data->node, &FLCTRL.fixup_set_root);
+
+	return 1;
+}
+
+int fixup_set_update(struct interval_tree_node* node, size_t offset, struct flatten_pointer* ptr) {
+
+	if (node==0) {
+		free(ptr);
+		return 0;
+	}
+
+	struct fixup_set_node* inode = fixup_set_search(node->start+offset);
+
+	if (!inode) {
+		return 0;
+	}
+
+	inode->ptr = ptr;
+	return 1;
+}
+
+int fixup_set_insert(struct interval_tree_node* node, size_t offset, struct flatten_pointer* ptr) {
 
 	if (node==0) {
 		free(ptr);
@@ -615,7 +665,9 @@ int flatten_write(FILE* ff) {
     FLCTRL.HDR.fix_base = 0;
     FLCTRL.HDR.magic = FLATTEN_MAGIC;
     size_t wr = fwrite(&FLCTRL.HDR,sizeof(struct flatten_header),1,ff);
-    if (wr!=1) return -1; written+=sizeof(struct flatten_header);
+    if (wr!=1)
+    	return -1;
+    written+=sizeof(struct flatten_header);
     struct root_addrnode* p = FLCTRL.rhead;
     while(p) {
         size_t root_addr_offset;
@@ -679,6 +731,69 @@ void unflatten_init() {
 
 #include <sys/mman.h>
 #include <sys/stat.h>
+
+int unflatten_map_rdonly(int fd, off_t offset) {
+
+	TIME_MARK_START(unfl_b);
+
+	struct stat st;
+	fstat(fd, &st);
+	const char *mem;
+	mem = mmap(0, offset+sizeof(struct flatten_header), PROT_READ, MAP_SHARED, fd, 0);
+	assert(mem!=MAP_FAILED);
+	memcpy(&FLCTRL.HDR,mem+offset,sizeof(struct flatten_header));
+	munmap((void*)mem,offset+sizeof(struct flatten_header));
+	size_t memsz = offset+sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count +
+			FLCTRL.HDR.memory_size+FLCTRL.HDR.ptr_count*sizeof(size_t);
+	assert(st.st_size>=(long)memsz);
+	size_t hdr_offset = sizeof(struct flatten_header) + sizeof(size_t)*FLCTRL.HDR.root_addr_count;
+	size_t mem_offset = hdr_offset + FLCTRL.HDR.ptr_count*sizeof(size_t);
+	if (FLCTRL.HDR.fix_base) {
+		/* Try to map memory at the same address as it was mapped last time */
+		void* reqaddr = (void*)(FLCTRL.HDR.fix_base - mem_offset - offset);
+		mem = mmap(reqaddr, memsz, PROT_READ, MAP_SHARED, fd, 0);
+		if ((mem!=MAP_FAILED)&&(mem!=reqaddr)) {
+			/* mmap succeeded but the address is different */
+			munmap((void*)mem,memsz);
+			return -2;
+		}
+		else if (mem!=MAP_FAILED) {
+			/* mem is mapped at requested address. Complete mapping. */
+			FLCTRL.map_size = memsz;
+			FLCTRL.map_mem = (void*)mem;
+			mem+=offset+sizeof(struct flatten_header);
+			if (FLCTRL.HDR.magic!=FLATTEN_MAGIC) {
+				fprintf(stderr,"Invalid magic while reading flattened image\n");
+				return -1;
+			}
+			size_t i;
+			for (i=0; i<FLCTRL.HDR.root_addr_count; ++i) {
+				size_t root_addr_offset;
+				memcpy(&root_addr_offset,mem,sizeof(size_t));
+				mem+=sizeof(size_t);
+				root_addr_append(root_addr_offset);
+			}
+			FLCTRL.mem = (void*)mem;
+			if ((FLCTRL.option&option_silent)==0) {
+				printf("# Unflattening done. Summary:\n");
+				TIME_CHECK_FMT(unfl_b,map_e,"  Image mapping time: %fs\n");
+			}
+			TIME_MARK_START(fix_b);
+			if ((FLCTRL.option&option_silent)==0) {
+				TIME_CHECK_FMT(unfl_b,fix_e,"  Total time: %fs\n");
+				printf("  Total bytes mapped: %zu\n",memsz);
+			}
+
+			return 0;
+		}
+		else {
+			/* mmap failed */
+			return -3;
+		}
+	}
+
+	return -1;
+}
 
 int unflatten_map(int fd, off_t offset) {
 
